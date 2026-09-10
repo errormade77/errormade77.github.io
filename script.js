@@ -14,6 +14,27 @@
   tickClock();
   setInterval(tickClock, 1000);
 
+  var compactHomeMq = window.matchMedia("(max-width: 720px)");
+  function homeOverlayOpen() {
+    return !!document.querySelector(".uiworks-window.is-open, .howto-window.is-open");
+  }
+  document.addEventListener(
+    "touchmove",
+    function (event) {
+      if (!compactHomeMq.matches || homeOverlayOpen()) return;
+      event.preventDefault();
+    },
+    { passive: false }
+  );
+  window.addEventListener(
+    "scroll",
+    function () {
+      if (!compactHomeMq.matches || homeOverlayOpen()) return;
+      if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+    },
+    { passive: true }
+  );
+
   var overlays = {
     "#guide": {
       el: document.getElementById("guide-window"),
