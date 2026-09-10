@@ -506,7 +506,7 @@
     var pointerId = null;
     var lastX = 0;
     var lastY = 0;
-    var brushSize = 9;
+    var brushSize = 80;
     var particleCount = 150;
     var particleSize = 2.6;
     var intensity = 200;
@@ -1014,7 +1014,7 @@
         if (event.deltaMode === 2) pixels *= 80;
         event.preventDefault();
         var step = Math.max(1, Math.round(Math.abs(pixels) / 24));
-        applySize(brushSize + (pixels < 0 ? step : -step), true);
+        applySize(brushSize + (pixels < 0 ? step : -step), false);
       },
       { passive: false }
     );
@@ -1027,7 +1027,7 @@
       clearCanvas();
     });
 
-    var applySize = bindNumber(sizeRange, sizeNumber, SIZE_KEY, 4, 80, 9, function (next) {
+    var applySize = bindNumber(sizeRange, sizeNumber, SIZE_KEY, 4, 80, 80, function (next) {
       brushSize = next;
       updateCursorSize();
     });
@@ -1283,8 +1283,8 @@
 
     function layoutPreview() {
       if (!windowEl) return;
+      windowEl.style.setProperty("--uiworks-column-width", preferredColumnWidth + "px");
       if (isCompactView() || !windowEl.classList.contains("is-preview")) {
-        windowEl.style.setProperty("--uiworks-column-width", preferredColumnWidth + "px");
         windowEl.style.setProperty("--uiworks-preview-fit-width", preferredPreviewWidth + "px");
         return;
       }
@@ -1292,14 +1292,16 @@
       var closeW = closeEl ? Math.ceil(closeEl.getBoundingClientRect().width) : 50;
       var reserved = closeW + PREVIEW_GAP * 2;
       var viewport = window.innerWidth;
-      var desiredPreview = Math.max(PREVIEW_FIT_MIN, preferredPreviewWidth);
-      var spaceForColumn = viewport - desiredPreview - reserved;
-      var displayColumn = Math.min(
-        preferredColumnWidth,
-        Math.max(COLUMN_FIT_MIN, spaceForColumn)
-      );
+      var displayColumn = preferredColumnWidth;
       var spaceForPreview = viewport - displayColumn - reserved;
-      var displayPreview = Math.min(desiredPreview, Math.max(PREVIEW_FIT_MIN, spaceForPreview));
+      if (spaceForPreview < PREVIEW_FIT_MIN) {
+        displayColumn = Math.max(COLUMN_FIT_MIN, viewport - PREVIEW_FIT_MIN - reserved);
+        spaceForPreview = viewport - displayColumn - reserved;
+      }
+      var displayPreview = Math.min(
+        preferredPreviewWidth,
+        Math.max(PREVIEW_FIT_MIN, spaceForPreview)
+      );
 
       windowEl.style.setProperty("--uiworks-column-width", Math.round(displayColumn) + "px");
       windowEl.style.setProperty("--uiworks-preview-fit-width", Math.round(displayPreview) + "px");
