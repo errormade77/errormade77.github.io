@@ -265,7 +265,7 @@
       numberEl.addEventListener("input", function () {
         apply(numberEl.value, true);
       });
-      apply(readStorage(options.key, options.fallback), false);
+      apply(options.fallback, false);
     }
 
     function applyEnabled(on, persist) {
@@ -406,7 +406,7 @@
       key: BLUR_KEY,
       min: 0,
       max: 24,
-      fallback: 8,
+      fallback: 12,
       decimals: 1,
       cssVar: "--home-hover-blur",
       unit: "px",
@@ -415,7 +415,7 @@
       key: SPEED_KEY,
       min: 0,
       max: 2,
-      fallback: 0.22,
+      fallback: 0.23,
       decimals: 2,
       cssVar: "--home-hover-speed",
       unit: "s",
@@ -424,7 +424,7 @@
       key: HOVER_SCALE_KEY,
       min: -3,
       max: 3,
-      fallback: 1,
+      fallback: 1.5,
       decimals: 2,
       cssVar: "--home-hover-scale",
       unit: "",
@@ -433,7 +433,7 @@
       key: OTHERS_SCALE_KEY,
       min: -3,
       max: 3,
-      fallback: 1,
+      fallback: 0.85,
       decimals: 2,
       cssVar: "--home-others-scale",
       unit: "",
@@ -442,17 +442,17 @@
       key: FOLLOW_AMOUNT_KEY,
       min: 0,
       max: 40,
-      fallback: 10,
+      fallback: 11,
       decimals: 0,
       onApply: function (next) {
         followAmount = next;
       },
     });
 
-    applyFollowEnabled(readStorage(FOLLOW_KEY, "1") === "1", false);
-    applyHideCursor(readStorage(HIDE_CURSOR_KEY, "0") === "1", false);
-    applyBlendDifference(readStorage(BLEND_KEY, "1") === "1", false);
-    applyEnabled(readStorage(ON_KEY, "1") === "1", false);
+    applyFollowEnabled(true, false);
+    applyHideCursor(false, false);
+    applyBlendDifference(true, false);
+    applyEnabled(true, false);
   }
 
   function initHomeSpray() {
@@ -506,13 +506,13 @@
     var pointerId = null;
     var lastX = 0;
     var lastY = 0;
-    var brushSize = 70;
-    var particleCount = 22;
-    var particleSize = 1.5;
-    var intensity = 80;
-    var cluster = 45;
-    var liquidity = 45;
-    var drips = 8;
+    var brushSize = 9;
+    var particleCount = 150;
+    var particleSize = 2.6;
+    var intensity = 200;
+    var cluster = 23;
+    var liquidity = 20;
+    var drips = 21;
     var dripParticles = [];
     var dripRaf = 0;
     var strokePts = [];
@@ -567,7 +567,7 @@
       numberEl.addEventListener("input", function () {
         apply(numberEl.value, true);
       });
-      apply(readStorage(key, fallback), false);
+      apply(fallback, false);
       return apply;
     }
 
@@ -1027,11 +1027,11 @@
       clearCanvas();
     });
 
-    var applySize = bindNumber(sizeRange, sizeNumber, SIZE_KEY, 4, 80, 70, function (next) {
+    var applySize = bindNumber(sizeRange, sizeNumber, SIZE_KEY, 4, 80, 9, function (next) {
       brushSize = next;
       updateCursorSize();
     });
-    bindNumber(particleRange, particleNumber, PARTICLES_KEY, 1, 150, 22, function (next) {
+    bindNumber(particleRange, particleNumber, PARTICLES_KEY, 1, 150, 150, function (next) {
       particleCount = next;
     });
     bindNumber(
@@ -1040,22 +1040,22 @@
       PARTICLE_SIZE_KEY,
       0.5,
       12,
-      1.5,
+      2.6,
       function (next) {
         particleSize = next;
       },
       1
     );
-    bindNumber(intensityRange, intensityNumber, INTENSITY_KEY, 1, 200, 80, function (next) {
+    bindNumber(intensityRange, intensityNumber, INTENSITY_KEY, 1, 200, 200, function (next) {
       intensity = next;
     });
-    bindNumber(clusterRange, clusterNumber, CLUSTER_KEY, 0, 100, 45, function (next) {
+    bindNumber(clusterRange, clusterNumber, CLUSTER_KEY, 0, 100, 23, function (next) {
       cluster = next;
     });
-    bindNumber(liquidRange, liquidNumber, LIQUID_KEY, 0, 100, 45, function (next) {
+    bindNumber(liquidRange, liquidNumber, LIQUID_KEY, 0, 100, 20, function (next) {
       liquidity = next;
     });
-    bindNumber(dripsRange, dripsNumber, DRIPS_KEY, 0, 40, 8, function (next) {
+    bindNumber(dripsRange, dripsNumber, DRIPS_KEY, 0, 40, 21, function (next) {
       drips = next;
     });
 
@@ -1120,21 +1120,21 @@
     var WIDTH_KEY = options.keyPrefix + "-column-width";
     var WIDTH_MIN = 120;
     var WIDTH_MAX = 1400;
-    var WIDTH_DEFAULT = 520;
+    var WIDTH_DEFAULT = 310;
     var PREVIEW_KEY = options.keyPrefix + "-scroll-preview";
     var PREVIEW_WIDTH_KEY = options.keyPrefix + "-preview-width";
     var PREVIEW_WIDTH_MIN = 200;
     var PREVIEW_WIDTH_MAX = 1600;
-    var PREVIEW_WIDTH_DEFAULT = 400;
+    var PREVIEW_WIDTH_DEFAULT = 1065;
     var PREVIEW_FILL_KEY = options.keyPrefix + "-preview-fill-height";
     var SENS_KEY = options.keyPrefix + "-scroll-sens";
     var SMOOTH_KEY = options.keyPrefix + "-scroll-smooth";
     var SENS_MIN = 0.1;
     var SENS_MAX = 4;
-    var SENS_DEFAULT = 1;
+    var SENS_DEFAULT = 1.1;
     var SMOOTH_MIN = 0;
     var SMOOTH_MAX = 90;
-    var SMOOTH_DEFAULT = 0;
+    var SMOOTH_DEFAULT = 90;
     var PREVIEW_GAP = 16;
     var COLUMN_FIT_MIN = 64;
     var PREVIEW_FIT_MIN = 160;
@@ -1635,12 +1635,12 @@
 
     function loadLayout() {
       seedMissingKeys();
-      applyColumnWidth(readStorage(WIDTH_KEY, WIDTH_DEFAULT), false);
-      applyPreviewWidth(readStorage(PREVIEW_WIDTH_KEY, PREVIEW_WIDTH_DEFAULT), false);
-      applyScrollSens(readStorage(SENS_KEY, SENS_DEFAULT), false);
-      applyScrollSmooth(readStorage(SMOOTH_KEY, SMOOTH_DEFAULT), false);
-      applyFillHeight(readStorage(PREVIEW_FILL_KEY, "1") === "1", false);
-      applyPreviewMode(readStorage(PREVIEW_KEY, "1") === "1", false);
+      applyColumnWidth(WIDTH_DEFAULT, false);
+      applyPreviewWidth(PREVIEW_WIDTH_DEFAULT, false);
+      applyScrollSens(SENS_DEFAULT, false);
+      applyScrollSmooth(SMOOTH_DEFAULT, false);
+      applyFillHeight(true, false);
+      applyPreviewMode(true, false);
     }
 
     function getDb() {

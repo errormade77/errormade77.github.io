@@ -291,10 +291,10 @@ img {
 
 @media (hover: hover) and (pointer: fine) {
   .home.is-hover-blur {
-    --home-hover-blur: 8px;
-    --home-hover-speed: 0.22s;
-    --home-hover-scale: 1;
-    --home-others-scale: 1;
+    --home-hover-blur: 12px;
+    --home-hover-speed: 0.23s;
+    --home-hover-scale: 1.5;
+    --home-others-scale: 0.85;
   }
 
   .home.is-hover-blur .home-hover-target {
@@ -379,8 +379,8 @@ img {
 /* ========== UI Works (Frame 11:5) ========== */
 
 .uiworks-window {
-  --uiworks-column-width: 520px;
-  --uiworks-preview-width: 400px;
+  --uiworks-column-width: 310px;
+  --uiworks-preview-width: 1065px;
   position: fixed;
   inset: 0;
   z-index: 20;
