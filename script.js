@@ -653,8 +653,18 @@
       }
     }
 
-    function sprayAt(x, y) {
+    function isMobileSpray() {
+      return window.matchMedia("(max-width: 720px), (pointer: coarse)").matches;
+    }
+
+    function liveBrushSize() {
       var size = brushSize;
+      if (isMobileSpray()) size = size / 3;
+      return Math.max(4, size);
+    }
+
+    function sprayAt(x, y) {
+      var size = liveBrushSize();
       var wet = liquidity / 100;
       var tightness = cluster / 100;
       var sigma = size * (0.18 + (1 - tightness) * 0.42 + wet * 0.12);
@@ -690,7 +700,7 @@
       var dx = x1 - x0;
       var dy = y1 - y0;
       var dist = Math.hypot(dx, dy);
-      var step = Math.max(0.55, Math.min(4.2, brushSize * 0.055 + 0.35) * (1.15 - intensity / 280));
+      var step = Math.max(0.55, Math.min(4.2, liveBrushSize() * 0.055 + 0.35) * (1.15 - intensity / 280));
       var n = Math.max(1, Math.ceil(dist / step));
       var i;
       for (i = 0; i <= n; i++) {
@@ -850,7 +860,7 @@
         var t = Math.max(0, drip.life / drip.maxLife);
         if (drip.kind === "split" && drip.split && t < drip.split && t > drip.split - 0.08) {
           drip.split = 0;
-          maybeSpawnDrip(drip.x + (Math.random() - 0.5) * 6, drip.y, brushSize, wet, drip.mass, "hair");
+          maybeSpawnDrip(drip.x + (Math.random() - 0.5) * 6, drip.y, liveBrushSize(), wet, drip.mass, "hair");
         }
         drip.skipped += 1;
         var broken = drip.kind === "break" && drip.skipEvery && drip.skipped % drip.skipEvery === 0;
@@ -959,7 +969,7 @@
     }
 
     function updateCursorSize() {
-      var size = Math.max(8, brushSize);
+      var size = Math.max(8, liveBrushSize());
       cursor.style.width = size + "px";
       cursor.style.height = size + "px";
     }
@@ -978,7 +988,10 @@
       cursor.classList.add("is-visible");
     }
 
-    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("resize", function () {
+      resizeCanvas();
+      updateCursorSize();
+    });
 
     document.addEventListener("pointerdown", function (event) {
       if (event.button != null && event.button !== 0) return;
