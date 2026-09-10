@@ -135,7 +135,7 @@ img {
   display: block;
 }
 
-.home.is-blend-difference .logo img,
+.home.is-blend-difference .logo,
 .home.is-blend-difference .link,
 .home.is-blend-difference .howto-teaser-text,
 .home.is-blend-difference .home-params {
@@ -163,17 +163,6 @@ img {
 .home.is-blend-difference a.howto-teaser,
 .home.is-blend-difference a.howto-teaser:hover {
   opacity: 1;
-}
-
-@media (hover: none), (pointer: coarse), (max-width: 720px) {
-  .home.is-blend-difference .logo img,
-  .home.is-blend-difference .link,
-  .home.is-blend-difference .howto-teaser-text,
-  .home.is-blend-difference .home-params {
-    mix-blend-mode: normal;
-    filter: none;
-    color: var(--black);
-  }
 }
 
 .stage {
@@ -965,7 +954,6 @@ img {
 
   .stage {
     position: relative;
-    z-index: 1;
     left: auto;
     top: auto;
     width: 100%;
