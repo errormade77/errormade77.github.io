@@ -1199,6 +1199,7 @@
     var listDirty = true;
     var previewRaf = 0;
     var mediaObserver = null;
+    var previewImageToken = 0;
 
     function clamp(value, min, max, fallback) {
       var next = Math.round(Number(value));
@@ -1258,35 +1259,94 @@
       });
     }
 
-    function pausePanelMedia() {
-      if (isPreviewOn() && isPanelOpen()) return;
-      Array.prototype.forEach.call(column.querySelectorAll("video"), function (video) {
-        video.pause();
+    function itemById(id) {
+      return items.find(function (entry) {
+        return entry.id === id;
       });
     }
 
+    function unloadColumnVideo(itemEl) {
+      if (!itemEl) return;
+      var video = itemEl.querySelector("video");
+      itemEl.classList.remove("is-playing");
+      if (!video) return;
+      video.pause();
+      video.removeAttribute("src");
+      try {
+        video.load();
+      } catch (error) {}
+      video.remove();
+    }
+
+    function hydrateColumnThumb(itemEl) {
+      var img = itemEl && itemEl.querySelector("img");
+      if (!img || img.getAttribute("src")) return;
+      var src = img.getAttribute("data-src");
+      if (src) img.src = src;
+    }
+
+    function hydrateColumnVideo(itemEl) {
+      var item = itemById(itemEl && itemEl.dataset.id);
+      if (!item || mediaKind(item) !== "video") return;
+      var video = itemEl.querySelector("video");
+      if (!video) {
+        video = document.createElement("video");
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true;
+        video.preload = "auto";
+        video.setAttribute("muted", "");
+        video.setAttribute("loop", "");
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        var poster = urlForThumb(item);
+        if (poster) video.poster = poster;
+        video.src = urlFor(item);
+        video.addEventListener("loadedmetadata", requestSyncPreview);
+        itemEl.appendChild(video);
+      }
+      itemEl.classList.add("is-playing");
+      video.play().catch(function () {});
+    }
+
+    function pausePanelMedia() {
+      Array.prototype.forEach.call(column.querySelectorAll(".uiworks-item"), unloadColumnVideo);
+    }
+
     function observeColumnMedia() {
-      if (typeof IntersectionObserver === "undefined") {
-        Array.prototype.forEach.call(column.querySelectorAll("video"), function (video) {
-          if (isPanelOpen() && !isPreviewOn()) video.play().catch(function () {});
-        });
+      if (mediaObserver) {
+        mediaObserver.disconnect();
+        mediaObserver = null;
+      }
+      if (!isPanelOpen()) {
+        pausePanelMedia();
         return;
       }
-      if (mediaObserver) mediaObserver.disconnect();
+      if (isPreviewOn()) pausePanelMedia();
+      if (typeof IntersectionObserver === "undefined") {
+        Array.prototype.forEach.call(column.querySelectorAll(".uiworks-item"), hydrateColumnThumb);
+        if (!isPreviewOn()) {
+          Array.prototype.forEach.call(column.querySelectorAll('.uiworks-item[data-kind="video"]'), hydrateColumnVideo);
+        }
+        return;
+      }
       mediaObserver = new IntersectionObserver(
         function (entries) {
-          if (!isPanelOpen() || isPreviewOn()) return;
+          if (!isPanelOpen()) return;
+          var previewOn = isPreviewOn();
           entries.forEach(function (entry) {
-            var el = entry.target;
-            if (el.tagName !== "VIDEO") return;
-            if (entry.isIntersecting) el.play().catch(function () {});
-            else el.pause();
+            if (entry.isIntersecting) {
+              hydrateColumnThumb(entry.target);
+              if (!previewOn) hydrateColumnVideo(entry.target);
+            } else if (!previewOn) {
+              unloadColumnVideo(entry.target);
+            }
           });
         },
-        { root: column, rootMargin: "80px 0px", threshold: 0.01 }
+        { root: column, rootMargin: "240px 0px", threshold: 0.01 }
       );
-      Array.prototype.forEach.call(column.querySelectorAll("video"), function (video) {
-        mediaObserver.observe(video);
+      Array.prototype.forEach.call(column.querySelectorAll(".uiworks-item"), function (itemEl) {
+        mediaObserver.observe(itemEl);
       });
     }
 
@@ -1538,7 +1598,9 @@
         return;
       }
       previewEl.setAttribute("data-preview-id", id);
+      var thumb = urlForThumb(item);
       if (kind === "video") {
+        previewImageToken += 1;
         if (previewImg) {
           previewImg.remove();
           previewImg = null;
@@ -1547,6 +1609,7 @@
         if (video.parentNode !== previewEl) previewEl.appendChild(video);
         previewEl.classList.add("has-video");
         var src = urlForPreview(item);
+        if (thumb) video.poster = thumb;
         if (video.getAttribute("src") !== src && video.src !== src) {
           video.src = src;
         }
@@ -1565,10 +1628,25 @@
         previewImg.alt = "";
         previewEl.appendChild(previewImg);
       }
-      previewImg.src = urlFor(item);
+      var full = urlFor(item);
+      if (thumb && thumb !== full) {
+        previewImg.src = thumb;
+        previewImageToken += 1;
+        var token = previewImageToken;
+        var loader = new Image();
+        loader.onload = function () {
+          if (token !== previewImageToken) return;
+          if (previewEl.getAttribute("data-preview-id") !== id) return;
+          if (previewImg) previewImg.src = full;
+        };
+        loader.src = full;
+      } else {
+        previewImg.src = full;
+      }
     }
 
     function clearPreview() {
+      previewImageToken += 1;
       releasePreviewMedia();
       previewEl.removeAttribute("data-preview-id");
       previewEl.classList.remove("has-video");
@@ -1834,6 +1912,12 @@
       return urls[item.id];
     }
 
+    function urlForThumb(item) {
+      if (item.thumb) return item.thumb;
+      if (mediaKind(item) === "image") return urlFor(item);
+      return "";
+    }
+
     function urlForPreview(item) {
       if (item.blob) {
         if (!previewMediaUrls[item.id]) {
@@ -1881,27 +1965,31 @@
       }
       column.classList.add("has-media");
       column.innerHTML = items
-        .map(function (item) {
-          var src = urlFor(item);
+        .map(function (item, index) {
           var kind = mediaKind(item);
-          if (kind === "video") {
-            return (
-              '<div class="uiworks-item" draggable="true" data-id="' +
-              item.id +
-              '">' +
-              '<video src="' +
-              src +
-              '" muted loop playsinline preload="metadata"></video>' +
-              "</div>"
-            );
-          }
+          var thumb = urlForThumb(item) || (kind === "image" ? urlFor(item) : "");
+          var eager = index < 3;
+          var w = item.thumbW || 1400;
+          var h = item.thumbH || 1050;
           return (
             '<div class="uiworks-item" draggable="true" data-id="' +
             item.id +
+            '" data-kind="' +
+            kind +
             '">' +
-            '<img src="' +
-            src +
-            '" alt="" loading="lazy" decoding="async">' +
+            (thumb
+              ? '<img alt="" decoding="async" width="' +
+                w +
+                '" height="' +
+                h +
+                '" data-src="' +
+                thumb +
+                '"' +
+                (eager
+                  ? ' src="' + thumb + '" fetchpriority="high" loading="eager"'
+                  : ' loading="lazy"') +
+                ">"
+              : "") +
             "</div>"
           );
         })
@@ -2259,12 +2347,14 @@
         updatePreviewFields();
         layoutPreview();
         requestSyncPreview();
+        if (isPanelOpen()) observeColumnMedia();
       });
     } else if (compactMq.addListener) {
       compactMq.addListener(function () {
         updatePreviewFields();
         layoutPreview();
         requestSyncPreview();
+        if (isPanelOpen()) observeColumnMedia();
       });
     }
 

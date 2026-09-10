@@ -4,160 +4,229 @@
     "name": "2.mp4",
     "mime": "video/mp4",
     "sort": 0,
-    "src": "assets/works/graphic/00.mp4"
+    "src": "assets/works/graphic/00.mp4",
+    "thumb": "assets/works/graphic/thumbs/00.jpg",
+    "thumbW": 1050,
+    "thumbH": 1400
   },
   {
     "id": "863f255d-bd60-4b59-a07b-2237e51e24d5",
     "name": "4.mp4",
     "mime": "video/mp4",
     "sort": 1,
-    "src": "assets/works/graphic/01.mp4"
+    "src": "assets/works/graphic/01.mp4",
+    "thumb": "assets/works/graphic/thumbs/01.jpg",
+    "thumbW": 1050,
+    "thumbH": 1400
   },
   {
     "id": "2b44209a-8ca4-4847-b9a4-039c3be8680a",
     "name": "54.png",
     "mime": "image/png",
     "sort": 2,
-    "src": "assets/works/graphic/02.png"
+    "src": "assets/works/graphic/02.png",
+    "thumb": "assets/works/graphic/thumbs/02.jpg",
+    "thumbW": 1120,
+    "thumbH": 1400
   },
   {
     "id": "bbba8fd3-94f3-4344-98fe-ed20a1022d5a",
     "name": "52.png",
     "mime": "image/png",
     "sort": 3,
-    "src": "assets/works/graphic/03.png"
+    "src": "assets/works/graphic/03.png",
+    "thumb": "assets/works/graphic/thumbs/03.jpg",
+    "thumbW": 1120,
+    "thumbH": 1400
   },
   {
     "id": "2e5377a2-88a5-4fdb-bac1-8ad7de887738",
     "name": "53.png",
     "mime": "image/png",
     "sort": 4,
-    "src": "assets/works/graphic/04.png"
+    "src": "assets/works/graphic/04.png",
+    "thumb": "assets/works/graphic/thumbs/04.jpg",
+    "thumbW": 1120,
+    "thumbH": 1400
   },
   {
     "id": "a7c29074-be27-4100-acbc-654cee6578a2",
     "name": "07.png",
     "mime": "image/png",
     "sort": 5,
-    "src": "assets/works/graphic/05.png"
+    "src": "assets/works/graphic/05.png",
+    "thumb": "assets/works/graphic/thumbs/05.jpg",
+    "thumbW": 1120,
+    "thumbH": 1400
   },
   {
     "id": "b3336b8e-2446-434a-a92b-13a3253e3afd",
     "name": "56.png",
     "mime": "image/png",
     "sort": 6,
-    "src": "assets/works/graphic/06.png"
+    "src": "assets/works/graphic/06.png",
+    "thumb": "assets/works/graphic/thumbs/06.jpg",
+    "thumbW": 1120,
+    "thumbH": 1400
   },
   {
     "id": "a218f76d-ae88-4d1c-82cb-d9aee8463c25",
     "name": "03.png",
     "mime": "image/png",
     "sort": 7,
-    "src": "assets/works/graphic/07.png"
+    "src": "assets/works/graphic/07.png",
+    "thumb": "assets/works/graphic/thumbs/07.jpg",
+    "thumbW": 1120,
+    "thumbH": 1400
   },
   {
     "id": "2f448cfa-3f75-4b30-a367-d31f9ca942a3",
     "name": "55.png",
     "mime": "image/png",
     "sort": 8,
-    "src": "assets/works/graphic/08.png"
+    "src": "assets/works/graphic/08.png",
+    "thumb": "assets/works/graphic/thumbs/08.jpg",
+    "thumbW": 1120,
+    "thumbH": 1400
   },
   {
     "id": "e349c0f3-2a9b-4469-88ea-a36ee0232dd7",
     "name": "22.png",
     "mime": "image/png",
     "sort": 9,
-    "src": "assets/works/graphic/09.png"
+    "src": "assets/works/graphic/09.png",
+    "thumb": "assets/works/graphic/thumbs/09.jpg",
+    "thumbW": 1120,
+    "thumbH": 1400
   },
   {
     "id": "c815b53e-91c7-470b-8549-faf693eb62f8",
     "name": "41.png",
     "mime": "image/png",
     "sort": 10,
-    "src": "assets/works/graphic/10.png"
+    "src": "assets/works/graphic/10.png",
+    "thumb": "assets/works/graphic/thumbs/10.jpg",
+    "thumbW": 1120,
+    "thumbH": 1400
   },
   {
     "id": "f31b4703-96fd-4700-9753-72708bfdc0d7",
     "name": "39.png",
     "mime": "image/png",
     "sort": 11,
-    "src": "assets/works/graphic/11.png"
+    "src": "assets/works/graphic/11.png",
+    "thumb": "assets/works/graphic/thumbs/11.jpg",
+    "thumbW": 1120,
+    "thumbH": 1400
   },
   {
     "id": "56257a1b-cccc-406f-8f70-2cb3ddd592b0",
     "name": "42.png",
     "mime": "image/png",
     "sort": 12,
-    "src": "assets/works/graphic/12.png"
+    "src": "assets/works/graphic/12.png",
+    "thumb": "assets/works/graphic/thumbs/12.jpg",
+    "thumbW": 1120,
+    "thumbH": 1400
   },
   {
     "id": "fb9e33b2-cca3-46b0-972d-c2808a2f2981",
     "name": "43.png",
     "mime": "image/png",
     "sort": 13,
-    "src": "assets/works/graphic/13.png"
+    "src": "assets/works/graphic/13.png",
+    "thumb": "assets/works/graphic/thumbs/13.jpg",
+    "thumbW": 1400,
+    "thumbH": 1400
   },
   {
     "id": "e403af62-b269-4580-847f-35d675c31f2e",
     "name": "44.png",
     "mime": "image/png",
     "sort": 14,
-    "src": "assets/works/graphic/14.png"
+    "src": "assets/works/graphic/14.png",
+    "thumb": "assets/works/graphic/thumbs/14.jpg",
+    "thumbW": 1400,
+    "thumbH": 1400
   },
   {
     "id": "40f72fe8-116d-4c60-a5e6-9b4dedd02909",
     "name": "45.png",
     "mime": "image/png",
     "sort": 15,
-    "src": "assets/works/graphic/15.png"
+    "src": "assets/works/graphic/15.png",
+    "thumb": "assets/works/graphic/thumbs/15.jpg",
+    "thumbW": 1400,
+    "thumbH": 1400
   },
   {
     "id": "274a8faf-9cc1-40cd-92a9-1a9132b37802",
     "name": "46.png",
     "mime": "image/png",
     "sort": 16,
-    "src": "assets/works/graphic/16.png"
+    "src": "assets/works/graphic/16.png",
+    "thumb": "assets/works/graphic/thumbs/16.jpg",
+    "thumbW": 1400,
+    "thumbH": 1400
   },
   {
     "id": "7d0f6259-64e0-4f37-815b-01cb78f6b82d",
     "name": "47.png",
     "mime": "image/png",
     "sort": 17,
-    "src": "assets/works/graphic/17.png"
+    "src": "assets/works/graphic/17.png",
+    "thumb": "assets/works/graphic/thumbs/17.jpg",
+    "thumbW": 1400,
+    "thumbH": 1400
   },
   {
     "id": "f8eef14d-9b12-4f07-8370-d0bd8e015e7e",
     "name": "48.png",
     "mime": "image/png",
     "sort": 18,
-    "src": "assets/works/graphic/18.png"
+    "src": "assets/works/graphic/18.png",
+    "thumb": "assets/works/graphic/thumbs/18.jpg",
+    "thumbW": 1400,
+    "thumbH": 1400
   },
   {
     "id": "a927bc7d-8f78-48b2-abb5-beca1190b6d8",
     "name": "49.png",
     "mime": "image/png",
     "sort": 19,
-    "src": "assets/works/graphic/19.png"
+    "src": "assets/works/graphic/19.png",
+    "thumb": "assets/works/graphic/thumbs/19.jpg",
+    "thumbW": 1400,
+    "thumbH": 1400
   },
   {
     "id": "1ff06eb6-557a-4ebf-b7f9-4ef9ad4786e7",
     "name": "50.png",
     "mime": "image/png",
     "sort": 20,
-    "src": "assets/works/graphic/20.png"
+    "src": "assets/works/graphic/20.png",
+    "thumb": "assets/works/graphic/thumbs/20.jpg",
+    "thumbW": 1400,
+    "thumbH": 1400
   },
   {
     "id": "5718942d-09af-431b-8849-f1860ad943b8",
     "name": "51.png",
     "mime": "image/png",
     "sort": 21,
-    "src": "assets/works/graphic/21.png"
+    "src": "assets/works/graphic/21.png",
+    "thumb": "assets/works/graphic/thumbs/21.jpg",
+    "thumbW": 1400,
+    "thumbH": 1400
   },
   {
     "id": "bd21e0e5-aecf-4e01-8d46-22fbe944af96",
     "name": "Frame 1.png",
     "mime": "image/png",
     "sort": 22,
-    "src": "assets/works/graphic/22.png"
+    "src": "assets/works/graphic/22.png",
+    "thumb": "assets/works/graphic/thumbs/22.jpg",
+    "thumbW": 980,
+    "thumbH": 1400
   }
 ]
