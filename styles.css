@@ -968,46 +968,46 @@ img {
   }
 
   .link-clock {
-    left: 18%;
-    top: 22%;
+    left: calc(50% - 108px);
+    top: calc(50% - 148px);
   }
 
   .link-telegram {
-    left: 8%;
-    top: 38%;
+    left: 12px;
+    top: calc(50% - 28px);
   }
 
   .link-instagram {
-    left: 14%;
-    top: 48%;
+    left: 67px;
+    top: calc(50% - 12px);
   }
 
   .link-ui-works {
     left: auto;
-    right: 18%;
-    top: 48%;
+    right: 68px;
+    top: calc(50% + 6px);
   }
 
   .link-graphic-works {
     left: auto;
-    right: 8%;
-    top: 54%;
+    right: 12px;
+    top: calc(50% + 22px);
   }
 
   .link-sandbox-001 {
-    left: calc(50% - 92px);
-    top: 74%;
+    left: calc(50% - 50px);
+    top: calc(50% + 96px);
   }
 
   .link-sandbox-002 {
-    left: calc(50% + 10px);
-    top: 76%;
+    left: calc(50% + 31px);
+    top: calc(50% + 109px);
   }
 
   .howto-teaser {
     left: auto;
-    right: 7%;
-    top: 8%;
+    right: 12px;
+    top: calc(50% - 220px);
   }
 
   .home-params {
