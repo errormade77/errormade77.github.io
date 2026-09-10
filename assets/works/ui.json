@@ -1,0 +1,156 @@
+[
+  {
+    "id": "86c1226f-35be-42b5-9741-d83a0c8d2916",
+    "name": "\u0411\u0435\u0437 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f.mov",
+    "mime": "video/mp4",
+    "sort": 0,
+    "src": "assets/works/ui/00.mp4"
+  },
+  {
+    "id": "59c77c7f-1913-4774-a5e3-a57272e99c65",
+    "name": "12.png",
+    "mime": "image/png",
+    "sort": 1,
+    "src": "assets/works/ui/01.png"
+  },
+  {
+    "id": "c67eb495-2891-4c78-acd1-6df63725bf8a",
+    "name": "0327(2).mov",
+    "mime": "video/mp4",
+    "sort": 2,
+    "src": "assets/works/ui/02.mp4"
+  },
+  {
+    "id": "333c5b07-e0f9-4ae2-87d8-d1fe5491831d",
+    "name": "Vertical 3\u00a0\u2014 \u043a\u043e\u043f\u0438\u044f 2.mov",
+    "mime": "video/mp4",
+    "sort": 3,
+    "src": "assets/works/ui/03.mp4"
+  },
+  {
+    "id": "9ad88286-7887-407f-a9d0-76d12a771214",
+    "name": "\u0417\u0430\u043f\u0438\u0441\u044c \u044d\u043a\u0440\u0430\u043d\u0430 2026-08-18 \u0432 17.11.02.mov",
+    "mime": "video/mp4",
+    "sort": 4,
+    "src": "assets/works/ui/04.mp4"
+  },
+  {
+    "id": "00be06ec-6a0d-46f5-b1ae-aff188d912f3",
+    "name": "06.png",
+    "mime": "image/png",
+    "sort": 5,
+    "src": "assets/works/ui/05.png"
+  },
+  {
+    "id": "0472a8d9-7108-40c4-9612-ac5088bf4d15",
+    "name": "05.png",
+    "mime": "image/png",
+    "sort": 6,
+    "src": "assets/works/ui/06.png"
+  },
+  {
+    "id": "1c1bd121-8d60-4877-adaa-bd2cd7e3a41a",
+    "name": "Vertical 1\u00a0\u2014 \u043a\u043e\u043f\u0438\u044f.mov",
+    "mime": "video/mp4",
+    "sort": 7,
+    "src": "assets/works/ui/07.mp4"
+  },
+  {
+    "id": "a11fb6fb-ac4a-45ec-8a8c-49d6c56f0828",
+    "name": "07.png",
+    "mime": "image/png",
+    "sort": 8,
+    "src": "assets/works/ui/08.png"
+  },
+  {
+    "id": "5651f555-14a1-47ee-9650-c1dbe1d999de",
+    "name": "08.png",
+    "mime": "image/png",
+    "sort": 9,
+    "src": "assets/works/ui/09.png"
+  },
+  {
+    "id": "e40c1253-18fa-4fdf-bc3f-30ac714a1aac",
+    "name": "15.png",
+    "mime": "image/png",
+    "sort": 10,
+    "src": "assets/works/ui/10.png"
+  },
+  {
+    "id": "ec83390e-e72b-46d9-aec4-040cbba04882",
+    "name": "1.png",
+    "mime": "image/png",
+    "sort": 11,
+    "src": "assets/works/ui/11.png"
+  },
+  {
+    "id": "19e3b428-c709-4e2f-a11a-347463d5f2c3",
+    "name": "13.png",
+    "mime": "image/png",
+    "sort": 12,
+    "src": "assets/works/ui/12.png"
+  },
+  {
+    "id": "60f55f54-cb50-4886-bf3d-3ef92dd26259",
+    "name": "Shot.png",
+    "mime": "image/png",
+    "sort": 13,
+    "src": "assets/works/ui/13.png"
+  },
+  {
+    "id": "fe1e5601-f3e4-4989-83c2-844180ff16fb",
+    "name": "14.png",
+    "mime": "image/png",
+    "sort": 14,
+    "src": "assets/works/ui/14.png"
+  },
+  {
+    "id": "8b544bf3-9221-4e60-b2f2-43f2812bad4c",
+    "name": "Halftone Icons.png",
+    "mime": "image/png",
+    "sort": 15,
+    "src": "assets/works/ui/15.png"
+  },
+  {
+    "id": "08bc2221-629b-436d-908d-4bed6c45d8b2",
+    "name": "0320.mov",
+    "mime": "video/mp4",
+    "sort": 16,
+    "src": "assets/works/ui/16.mp4"
+  },
+  {
+    "id": "f490427e-b0c8-4117-8c47-9f920e1c47ff",
+    "name": "11.png",
+    "mime": "image/png",
+    "sort": 17,
+    "src": "assets/works/ui/17.png"
+  },
+  {
+    "id": "8dc40763-dd0f-4731-9b6f-1679f575c6ff",
+    "name": "02.png",
+    "mime": "image/png",
+    "sort": 18,
+    "src": "assets/works/ui/18.png"
+  },
+  {
+    "id": "08490294-9960-4aa7-a051-db18515d8386",
+    "name": "01.png",
+    "mime": "image/png",
+    "sort": 19,
+    "src": "assets/works/ui/19.png"
+  },
+  {
+    "id": "4712992e-67cb-44a9-951a-89e8d9e6a974",
+    "name": "04.png",
+    "mime": "image/png",
+    "sort": 20,
+    "src": "assets/works/ui/20.png"
+  },
+  {
+    "id": "ac0a7b5b-43a4-453c-a64e-69a7600336a8",
+    "name": "03.png",
+    "mime": "image/png",
+    "sort": 21,
+    "src": "assets/works/ui/21.png"
+  }
+]

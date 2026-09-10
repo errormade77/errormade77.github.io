@@ -151,6 +151,7 @@
     store: "uiworks-media",
     keyPrefix: "errormade-uiworks",
     hash: "#ui-works",
+    manifest: "assets/works/ui.json",
   });
   initWorksPanel({
     prefix: "graphicworks",
@@ -159,6 +160,7 @@
     keyPrefix: "errormade-graphicworks",
     seedFrom: "errormade-uiworks",
     hash: "#graphic-works",
+    manifest: "assets/works/graphic.json",
   });
 
   syncFromHash();
@@ -1058,7 +1060,7 @@
     });
 
     resizeCanvas();
-    applyEnabled(readStorage(ON_KEY, "0") === "1", false);
+    applyEnabled(true, false);
   }
 
   function initWorksPanel(options) {
@@ -1540,6 +1542,7 @@
 
     function compressPreview(item) {
       if (previewUrls[item.id]) return Promise.resolve(previewUrls[item.id]);
+      if (!item.blob) return Promise.resolve(urlFor(item));
       if (previewPending[item.id]) return previewPending[item.id];
       previewPending[item.id] = compressImageBlob(item.blob, PREVIEW_MAX_EDGE)
         .then(function (blob) {
@@ -1661,6 +1664,17 @@
     }
 
     function loadItems() {
+      if (options.manifest) {
+        return fetch(options.manifest, { cache: "no-cache" }).then(function (res) {
+          if (!res.ok) throw new Error("manifest");
+          return res.json();
+        }).then(function (list) {
+          items = (list || []).slice().sort(function (a, b) {
+            return (a.sort || 0) - (b.sort || 0);
+          });
+          return items;
+        });
+      }
       return getDb().then(function (db) {
         return new Promise(function (resolve, reject) {
           var tx = db.transaction(STORE, "readonly");
@@ -1689,6 +1703,7 @@
     }
 
     function persistAll() {
+      if (options.manifest) return Promise.resolve();
       return getDb().then(function (db) {
         return new Promise(function (resolve, reject) {
           var tx = db.transaction(STORE, "readwrite");
@@ -1740,16 +1755,18 @@
     function mediaKind(item) {
       var type = (item.mime || (item.blob && item.blob.type) || "").toLowerCase();
       if (type.indexOf("video/") === 0) return "video";
-      if (/\.(mp4|webm|mov|m4v|ogg)$/i.test(item.name || "")) return "video";
+      if (/\.(mp4|webm|mov|m4v|ogg)$/i.test(item.src || item.name || "")) return "video";
       return "image";
     }
 
     function urlFor(item) {
+      if (item.src) return item.src;
       if (!urls[item.id]) urls[item.id] = URL.createObjectURL(item.blob);
       return urls[item.id];
     }
 
     function urlForPreview(item) {
+      if (item.src) return item.src;
       if (!previewMediaUrls[item.id]) previewMediaUrls[item.id] = URL.createObjectURL(item.blob);
       return previewMediaUrls[item.id];
     }
