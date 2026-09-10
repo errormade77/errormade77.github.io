@@ -379,8 +379,8 @@ img {
 /* ========== UI Works (Frame 11:5) ========== */
 
 .uiworks-window {
-  --uiworks-column-width: 357px;
-  --uiworks-preview-width: 640px;
+  --uiworks-column-width: 520px;
+  --uiworks-preview-width: 400px;
   position: fixed;
   inset: 0;
   z-index: 20;

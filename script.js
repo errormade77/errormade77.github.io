@@ -449,10 +449,10 @@
       },
     });
 
-    applyFollowEnabled(readStorage(FOLLOW_KEY, "0") === "1", false);
+    applyFollowEnabled(readStorage(FOLLOW_KEY, "1") === "1", false);
     applyHideCursor(readStorage(HIDE_CURSOR_KEY, "0") === "1", false);
-    applyBlendDifference(readStorage(BLEND_KEY, "0") === "1", false);
-    applyEnabled(readStorage(ON_KEY, "0") === "1", false);
+    applyBlendDifference(readStorage(BLEND_KEY, "1") === "1", false);
+    applyEnabled(readStorage(ON_KEY, "1") === "1", false);
   }
 
   function initHomeSpray() {
@@ -506,7 +506,7 @@
     var pointerId = null;
     var lastX = 0;
     var lastY = 0;
-    var brushSize = 28;
+    var brushSize = 70;
     var particleCount = 22;
     var particleSize = 1.5;
     var intensity = 80;
@@ -1027,7 +1027,7 @@
       clearCanvas();
     });
 
-    var applySize = bindNumber(sizeRange, sizeNumber, SIZE_KEY, 4, 80, 28, function (next) {
+    var applySize = bindNumber(sizeRange, sizeNumber, SIZE_KEY, 4, 80, 70, function (next) {
       brushSize = next;
       updateCursorSize();
     });
@@ -1120,12 +1120,12 @@
     var WIDTH_KEY = options.keyPrefix + "-column-width";
     var WIDTH_MIN = 120;
     var WIDTH_MAX = 1400;
-    var WIDTH_DEFAULT = 357;
+    var WIDTH_DEFAULT = 520;
     var PREVIEW_KEY = options.keyPrefix + "-scroll-preview";
     var PREVIEW_WIDTH_KEY = options.keyPrefix + "-preview-width";
     var PREVIEW_WIDTH_MIN = 200;
     var PREVIEW_WIDTH_MAX = 1600;
-    var PREVIEW_WIDTH_DEFAULT = 640;
+    var PREVIEW_WIDTH_DEFAULT = 400;
     var PREVIEW_FILL_KEY = options.keyPrefix + "-preview-fill-height";
     var SENS_KEY = options.keyPrefix + "-scroll-sens";
     var SMOOTH_KEY = options.keyPrefix + "-scroll-smooth";
@@ -1639,8 +1639,8 @@
       applyPreviewWidth(readStorage(PREVIEW_WIDTH_KEY, PREVIEW_WIDTH_DEFAULT), false);
       applyScrollSens(readStorage(SENS_KEY, SENS_DEFAULT), false);
       applyScrollSmooth(readStorage(SMOOTH_KEY, SMOOTH_DEFAULT), false);
-      applyFillHeight(readStorage(PREVIEW_FILL_KEY, "0") === "1", false);
-      applyPreviewMode(readStorage(PREVIEW_KEY, "0") === "1", false);
+      applyFillHeight(readStorage(PREVIEW_FILL_KEY, "1") === "1", false);
+      applyPreviewMode(readStorage(PREVIEW_KEY, "1") === "1", false);
     }
 
     function getDb() {
