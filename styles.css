@@ -165,6 +165,17 @@ img {
   opacity: 1;
 }
 
+@media (hover: none), (pointer: coarse), (max-width: 720px) {
+  .home.is-blend-difference .logo img,
+  .home.is-blend-difference .link,
+  .home.is-blend-difference .howto-teaser-text,
+  .home.is-blend-difference .home-params {
+    mix-blend-mode: normal;
+    filter: none;
+    color: var(--black);
+  }
+}
+
 .stage {
   position: absolute;
   left: 50%;
@@ -1016,6 +1027,10 @@ img {
     bottom: 12px;
   }
 
+  .uiworks-window {
+    --uiworks-column-width: 100%;
+  }
+
   .uiworks-window.is-preview .uiworks-column.has-media {
     padding-top: 0;
     padding-bottom: 0;
@@ -1049,7 +1064,8 @@ img {
   .uiworks-item,
   .uiworks-item img,
   .uiworks-item video {
-    width: var(--uiworks-column-width);
+    width: 100%;
+    max-width: 100%;
   }
 
   .uiworks-block {

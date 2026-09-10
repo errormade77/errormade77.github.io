@@ -152,6 +152,7 @@
     keyPrefix: "errormade-uiworks",
     hash: "#ui-works",
     manifest: "assets/works/ui.json",
+    manifestId: "uiworks-manifest",
   });
   initWorksPanel({
     prefix: "graphicworks",
@@ -161,6 +162,7 @@
     seedFrom: "errormade-uiworks",
     hash: "#graphic-works",
     manifest: "assets/works/graphic.json",
+    manifestId: "graphicworks-manifest",
   });
 
   syncFromHash();
@@ -1188,6 +1190,9 @@
       if (!previewVideo || !previewVideo.isConnected) return;
       if (!previewVideo.src && !previewVideo.getAttribute("src")) return;
       previewVideo.muted = true;
+      previewVideo.defaultMuted = true;
+      previewVideo.loop = true;
+      previewVideo.playsInline = true;
       var play = previewVideo.play();
       if (play && play.catch) play.catch(function () {});
     }
@@ -1220,6 +1225,7 @@
     }
 
     function pausePanelMedia() {
+      if (isPreviewOn() && isPanelOpen()) return;
       Array.prototype.forEach.call(column.querySelectorAll("video"), function (video) {
         video.pause();
       });
@@ -1264,7 +1270,8 @@
       ensureMedia().then(function () {
         if (!isPanelOpen()) return;
         observeColumnMedia();
-        requestSyncPreview();
+        syncPreview();
+        playPreviewVideo();
       });
     }
 
@@ -1283,8 +1290,13 @@
 
     function layoutPreview() {
       if (!windowEl) return;
+      if (isCompactView()) {
+        windowEl.style.setProperty("--uiworks-column-width", "100%");
+        windowEl.style.setProperty("--uiworks-preview-fit-width", preferredPreviewWidth + "px");
+        return;
+      }
       windowEl.style.setProperty("--uiworks-column-width", preferredColumnWidth + "px");
-      if (isCompactView() || !windowEl.classList.contains("is-preview")) {
+      if (!windowEl.classList.contains("is-preview")) {
         windowEl.style.setProperty("--uiworks-preview-fit-width", preferredPreviewWidth + "px");
         return;
       }
@@ -1501,7 +1513,9 @@
         if (video.parentNode !== previewEl) previewEl.appendChild(video);
         previewEl.classList.add("has-video");
         var src = urlForPreview(item);
-        if (video.getAttribute("src") !== src) video.src = src;
+        if (video.getAttribute("src") !== src && video.src !== src) {
+          video.src = src;
+        }
         playPreviewVideo();
         return;
       }
@@ -1665,18 +1679,14 @@
       return dbPromise;
     }
 
-    function loadItems() {
-      if (options.manifest) {
-        return fetch(options.manifest, { cache: "no-cache" }).then(function (res) {
-          if (!res.ok) throw new Error("manifest");
-          return res.json();
-        }).then(function (list) {
-          items = (list || []).slice().sort(function (a, b) {
-            return (a.sort || 0) - (b.sort || 0);
-          });
-          return items;
-        });
-      }
+    function applyManifest(list) {
+      items = (list || []).slice().sort(function (a, b) {
+        return (a.sort || 0) - (b.sort || 0);
+      });
+      return items;
+    }
+
+    function loadItemsFromDb() {
       return getDb().then(function (db) {
         return new Promise(function (resolve, reject) {
           var tx = db.transaction(STORE, "readonly");
@@ -1692,6 +1702,29 @@
           };
         });
       });
+    }
+
+    function loadItems() {
+      if (options.manifestId) {
+        var embedded = document.getElementById(options.manifestId);
+        if (embedded && embedded.textContent.trim()) {
+          try {
+            return Promise.resolve(applyManifest(JSON.parse(embedded.textContent)));
+          } catch (error) {}
+        }
+      }
+      if (options.manifest) {
+        return fetch(options.manifest, { cache: "no-cache" })
+          .then(function (res) {
+            if (!res.ok) throw new Error("manifest");
+            return res.json();
+          })
+          .then(applyManifest)
+          .catch(function () {
+            return loadItemsFromDb();
+          });
+      }
+      return loadItemsFromDb();
     }
 
     function applyDomOrder(nodeList) {
@@ -1768,9 +1801,28 @@
     }
 
     function urlForPreview(item) {
-      if (item.src) return item.src;
-      if (!previewMediaUrls[item.id]) previewMediaUrls[item.id] = URL.createObjectURL(item.blob);
-      return previewMediaUrls[item.id];
+      if (item.blob) {
+        if (!previewMediaUrls[item.id]) {
+          var blob = item.blob;
+          if (!blob.type || blob.type.indexOf("video/") !== 0) {
+            blob = new Blob([blob], { type: item.mime || "video/mp4" });
+          }
+          previewMediaUrls[item.id] = URL.createObjectURL(blob);
+        }
+        return previewMediaUrls[item.id];
+      }
+      if (!item.src) return urlFor(item);
+      try {
+        var url = new URL(item.src, document.baseURI);
+        if (url.protocol === "file:") {
+          url.hash = "em-preview";
+        } else {
+          url.searchParams.set("em-preview", "1");
+        }
+        return url.href;
+      } catch (error) {
+        return item.src;
+      }
     }
 
     function attachScrub() {
