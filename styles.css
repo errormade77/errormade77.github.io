@@ -89,12 +89,14 @@ img {
   height: 100vh;
   overflow: hidden;
   position: relative;
+  isolation: isolate;
+  background: var(--white);
 }
 
 .home-spray {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: auto;
   width: 100%;
   height: 100%;
   pointer-events: none;
@@ -140,6 +142,7 @@ img {
 .home.is-blend-difference .howto-teaser-text,
 .home.is-blend-difference .home-params {
   mix-blend-mode: difference;
+  transform: translateZ(0);
 }
 
 .home.is-blend-difference .link,
@@ -163,6 +166,21 @@ img {
 .home.is-blend-difference a.howto-teaser,
 .home.is-blend-difference a.howto-teaser:hover {
   opacity: 1;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .home.is-blend-difference .logo,
+  .home.is-blend-difference .link,
+  .home.is-blend-difference .howto-teaser-text,
+  .home.is-blend-difference .home-params {
+    color: var(--black);
+    mix-blend-mode: difference;
+    transform: none;
+  }
+
+  .home.is-blend-difference .logo img {
+    filter: none;
+  }
 }
 
 .stage {
