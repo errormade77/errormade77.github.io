@@ -4,6 +4,22 @@
   }
 
   var clockPaused = false;
+  var SHIP_DEFAULTS = window.__ERRORMADE_DEFAULTS__ || {};
+
+  function shipDefault(key, fallback) {
+    if (Object.prototype.hasOwnProperty.call(SHIP_DEFAULTS, key)) {
+      return String(SHIP_DEFAULTS[key]);
+    }
+    return fallback;
+  }
+
+  function readParam(key, fallback) {
+    try {
+      var value = localStorage.getItem(key);
+      if (value != null) return value;
+    } catch (error) {}
+    return shipDefault(key, fallback);
+  }
 
   // --- Shared params (dev-params.json) — desktop + phone stay in sync via local server ---
   var sharedParamsTimer = 0;
@@ -499,12 +515,7 @@
     var followOn = false;
 
     function readStorage(key, fallback) {
-      try {
-        var value = localStorage.getItem(key);
-        return value == null ? fallback : value;
-      } catch (error) {
-        return fallback;
-      }
+      return readParam(key, fallback);
     }
 
     function writeStorage(key, value) {
@@ -540,7 +551,7 @@
       numberEl.addEventListener("input", function () {
         apply(numberEl.value, true);
       });
-      apply(options.fallback, false);
+      apply(readStorage(options.key, String(options.fallback)), false);
     }
 
     function applyEnabled(on, persist) {
@@ -693,7 +704,7 @@
       key: BLUR_KEY,
       min: 0,
       max: 24,
-      fallback: 12,
+      fallback: 8,
       decimals: 1,
       cssVar: "--home-hover-blur",
       unit: "px",
@@ -702,7 +713,7 @@
       key: SPEED_KEY,
       min: 0,
       max: 2,
-      fallback: 0.23,
+      fallback: 0.1,
       decimals: 2,
       cssVar: "--home-hover-speed",
       unit: "s",
@@ -711,7 +722,7 @@
       key: HOVER_SCALE_KEY,
       min: -3,
       max: 3,
-      fallback: 1.5,
+      fallback: 1,
       decimals: 2,
       cssVar: "--home-hover-scale",
       unit: "",
@@ -720,7 +731,7 @@
       key: OTHERS_SCALE_KEY,
       min: -3,
       max: 3,
-      fallback: 0.85,
+      fallback: 1,
       decimals: 2,
       cssVar: "--home-others-scale",
       unit: "",
@@ -729,17 +740,17 @@
       key: FOLLOW_AMOUNT_KEY,
       min: 0,
       max: 40,
-      fallback: 11,
+      fallback: 10,
       decimals: 0,
       onApply: function (next) {
         followAmount = next;
       },
     });
 
-    applyFollowEnabled(true, false);
-    applyHideCursor(false, false);
+    applyFollowEnabled(readStorage(FOLLOW_KEY, "1") === "1", false);
+    applyHideCursor(readStorage(HIDE_CURSOR_KEY, "0") === "1", false);
     applyBlendDifference(readStorage(BLEND_KEY, "1") === "1", false);
-    applyEnabled(true, false);
+    applyEnabled(readStorage(ON_KEY, "1") === "1", false);
     if (compactHomeMq && compactHomeMq.addEventListener) {
       compactHomeMq.addEventListener("change", function () {
         applyBlendDifference(readStorage(BLEND_KEY, "1") === "1", false);
@@ -1269,8 +1280,8 @@
     opts.bindNumber(restBlurRange, restBlurNumber, {
       key: INTRO_REST_BLUR_KEY,
       min: 0,
-      max: 24,
-      fallback: storedNumber(INTRO_REST_BLUR_KEY, 0),
+      max: 40,
+      fallback: storedNumber(INTRO_REST_BLUR_KEY, 24),
       decimals: 1,
       onApply: applyIntroRestBlur,
     });
@@ -1278,7 +1289,7 @@
       key: INTRO_SPEED_KEY,
       min: 0.1,
       max: 2,
-      fallback: storedNumber(INTRO_SPEED_KEY, 0.55),
+      fallback: storedNumber(INTRO_SPEED_KEY, 0.5),
       decimals: 2,
       onApply: applyIntroSpeed,
     });
@@ -1286,7 +1297,7 @@
       key: INTRO_DELAY_KEY,
       min: 0,
       max: 2,
-      fallback: storedNumber(INTRO_DELAY_KEY, 0.25),
+      fallback: storedNumber(INTRO_DELAY_KEY, 0),
       decimals: 2,
       onApply: applyIntroDelay,
     });
@@ -1310,7 +1321,7 @@
       key: INTRO_REST_SCALE_KEY,
       min: 0.2,
       max: 2,
-      fallback: storedNumber(INTRO_REST_SCALE_KEY, 0.85),
+      fallback: storedNumber(INTRO_REST_SCALE_KEY, 0.5),
       decimals: 2,
       onApply: applyIntroRestScale,
     });
@@ -1318,7 +1329,7 @@
       key: INTRO_REST_RISE_KEY,
       min: 0,
       max: 200,
-      fallback: storedNumber(INTRO_REST_RISE_KEY, 40),
+      fallback: storedNumber(INTRO_REST_RISE_KEY, 20),
       decimals: 0,
       onApply: applyIntroRestRise,
     });
@@ -1336,8 +1347,8 @@
       playIntro();
     });
 
-    applyIntroScramble(opts.readStorage(INTRO_SCRAMBLE_KEY, "0") === "1", false);
-    applyIntroRandomize(opts.readStorage(INTRO_RANDOMIZE_KEY, "0") === "1", false);
+    applyIntroScramble(opts.readStorage(INTRO_SCRAMBLE_KEY, "1") === "1", false);
+    applyIntroRandomize(opts.readStorage(INTRO_RANDOMIZE_KEY, "1") === "1", false);
     applyIntroRestRiseRandom(opts.readStorage(INTRO_REST_RISE_RANDOM_KEY, "0") === "1", false);
     introItems().forEach(function (el) {
       unwrapIntroBlurInner(el);
@@ -1397,13 +1408,13 @@
     var pointerId = null;
     var lastX = 0;
     var lastY = 0;
-    var brushSize = 80;
-    var particleCount = 150;
-    var particleSize = 2.6;
-    var intensity = 200;
+    var brushSize = 70;
+    var particleCount = 22;
+    var particleSize = 1.5;
+    var intensity = 80;
     var cluster = 23;
-    var liquidity = 20;
-    var drips = 21;
+    var liquidity = 45;
+    var drips = 8;
     var dripParticles = [];
     var dripRaf = 0;
     var strokePts = [];
@@ -1420,12 +1431,7 @@
     var DRIPS_KEY = "errormade-home-spray-drips";
 
     function readStorage(key, fallback) {
-      try {
-        var value = localStorage.getItem(key);
-        return value == null ? fallback : value;
-      } catch (error) {
-        return fallback;
-      }
+      return readParam(key, fallback);
     }
 
     function writeStorage(key, value) {
@@ -1458,7 +1464,7 @@
       numberEl.addEventListener("input", function () {
         apply(numberEl.value, true);
       });
-      apply(fallback, false);
+      apply(readStorage(key, String(fallback)), false);
       return apply;
     }
 
@@ -1931,11 +1937,11 @@
       clearCanvas();
     });
 
-    var applySize = bindNumber(sizeRange, sizeNumber, SIZE_KEY, 4, 80, 80, function (next) {
+    var applySize = bindNumber(sizeRange, sizeNumber, SIZE_KEY, 4, 80, 70, function (next) {
       brushSize = next;
       updateCursorSize();
     });
-    bindNumber(particleRange, particleNumber, PARTICLES_KEY, 1, 150, 150, function (next) {
+    bindNumber(particleRange, particleNumber, PARTICLES_KEY, 1, 150, 22, function (next) {
       particleCount = next;
     });
     bindNumber(
@@ -1944,27 +1950,27 @@
       PARTICLE_SIZE_KEY,
       0.5,
       12,
-      2.6,
+      1.5,
       function (next) {
         particleSize = next;
       },
       1
     );
-    bindNumber(intensityRange, intensityNumber, INTENSITY_KEY, 1, 200, 200, function (next) {
+    bindNumber(intensityRange, intensityNumber, INTENSITY_KEY, 1, 200, 80, function (next) {
       intensity = next;
     });
     bindNumber(clusterRange, clusterNumber, CLUSTER_KEY, 0, 100, 23, function (next) {
       cluster = next;
     });
-    bindNumber(liquidRange, liquidNumber, LIQUID_KEY, 0, 100, 20, function (next) {
+    bindNumber(liquidRange, liquidNumber, LIQUID_KEY, 0, 100, 45, function (next) {
       liquidity = next;
     });
-    bindNumber(dripsRange, dripsNumber, DRIPS_KEY, 0, 40, 21, function (next) {
+    bindNumber(dripsRange, dripsNumber, DRIPS_KEY, 0, 40, 8, function (next) {
       drips = next;
     });
 
     resizeCanvas();
-    applyEnabled(true, false);
+    applyEnabled(readStorage(ON_KEY, "1") === "1", false);
   }
 
   function initWorksPanel(options) {
@@ -2060,12 +2066,12 @@
     var WIDTH_KEY = options.keyPrefix + "-column-width";
     var WIDTH_MIN = 64;
     var WIDTH_MAX = 800;
-    var WIDTH_DEFAULT = 310;
+    var WIDTH_DEFAULT = 520;
     var MAIN_WIDTH_KEY = options.keyPrefix + "-main-column-width";
     var MAIN_WIDTH_LEGACY_KEY = options.keyPrefix + "-preview-width";
     var MAIN_WIDTH_MIN = 160;
     var MAIN_WIDTH_MAX = 1600;
-    var MAIN_WIDTH_DEFAULT = 1065;
+    var MAIN_WIDTH_DEFAULT = 400;
     var MAIN_ALIGN_KEY = options.keyPrefix + "-main-column-align";
     var MAIN_ALIGN_DEFAULT = "left";
     var MEDIA_FIT_KEY = options.keyPrefix + "-media-fit";
@@ -2086,7 +2092,7 @@
     var SMOOTH_KEY = options.keyPrefix + "-scroll-smooth";
     var SENS_MIN = 0.1;
     var SENS_MAX = 4;
-    var SENS_DEFAULT = 1.1;
+    var SENS_DEFAULT = 2;
     var SMOOTH_MIN = 0;
     var SMOOTH_MAX = 90;
     var SMOOTH_DEFAULT = 90;
@@ -2818,11 +2824,7 @@
     }
 
     function readStorage(key, fallback) {
-      try {
-        return localStorage.getItem(key) || fallback;
-      } catch (error) {
-        return fallback;
-      }
+      return readParam(key, fallback);
     }
 
     function setScrubVisible(on) {
@@ -3196,14 +3198,14 @@
       applyMainAlign(readStorage(MAIN_ALIGN_KEY, MAIN_ALIGN_DEFAULT), false);
       applyMediaFit(readStorage(MEDIA_FIT_KEY, MEDIA_FIT_DEFAULT), false);
       applyScrubOrder(readStorage(SCRUB_ORDER_KEY, SCRUB_ORDER_DEFAULT), false);
-      applyIntroSmallBlur(readStorage(INTRO_SMALL_BLUR_KEY, "0"), false);
-      applyIntroLargeBlur(readStorage(INTRO_LARGE_BLUR_KEY, "0"), false);
+      applyIntroSmallBlur(readStorage(INTRO_SMALL_BLUR_KEY, "12.5"), false);
+      applyIntroLargeBlur(readStorage(INTRO_LARGE_BLUR_KEY, "12"), false);
       applyIntroSpeed(readStorage(INTRO_SPEED_KEY, "0.55"), false);
-      applyIntroDelay(readStorage(INTRO_DELAY_KEY, "0.25"), false);
+      applyIntroDelay(readStorage(INTRO_DELAY_KEY, "0"), false);
       applyIntroSmallScale(readStorage(INTRO_SMALL_SCALE_KEY, "1"), false);
-      applyIntroSmallRise(readStorage(INTRO_SMALL_RISE_KEY, "0"), false);
-      applyIntroLargeScale(readStorage(INTRO_LARGE_SCALE_KEY, "0.85"), false);
-      applyIntroLargeRise(readStorage(INTRO_LARGE_RISE_KEY, "40"), false);
+      applyIntroSmallRise(readStorage(INTRO_SMALL_RISE_KEY, "20"), false);
+      applyIntroLargeScale(readStorage(INTRO_LARGE_SCALE_KEY, "1"), false);
+      applyIntroLargeRise(readStorage(INTRO_LARGE_RISE_KEY, "20"), false);
       applyIntroLargeRiseRandom(readStorage(INTRO_LARGE_RISE_RANDOM_KEY, "0") === "1", false);
       applyIntroRandomize(readStorage(INTRO_RANDOMIZE_KEY, "0") === "1", false);
       applyScrollSens(readStorage(SENS_KEY, String(SENS_DEFAULT)), false);
