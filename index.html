@@ -5,31 +5,69 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>ERRORMADE</title>
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260911-ship" />
+    <script>
+      (function () {
+        // Shared params file = single source of truth for desktop + phone (local server).
+        try {
+          var xhr = new XMLHttpRequest();
+          xhr.open("GET", "dev-params.json?t=" + Date.now(), false);
+          xhr.send(null);
+          if (xhr.status >= 200 && xhr.status < 300 && xhr.responseText) {
+            var data = JSON.parse(xhr.responseText);
+            Object.keys(data).forEach(function (key) {
+              if (key.indexOf("errormade-") === 0) {
+                localStorage.setItem(key, String(data[key]));
+              }
+            });
+            if (data.__stamp) {
+              localStorage.setItem("errormade-dev-params-stamp", String(data.__stamp));
+            }
+          }
+        } catch (error) {}
+
+        function readNum(key, fallback) {
+          try {
+            var raw = localStorage.getItem(key);
+            if (raw == null) return fallback;
+            var value = Number(raw);
+            return isFinite(value) ? value : fallback;
+          } catch (error) {
+            return fallback;
+          }
+        }
+        var blur = readNum("errormade-home-intro-logo-blur", 0);
+        var rise = readNum("errormade-home-intro-logo-rise", 0);
+        var scale = readNum("errormade-home-intro-logo-scale", 1);
+        if (blur <= 0 && rise <= 0 && Math.abs(scale - 1) < 0.001) {
+          document.documentElement.classList.add("is-logo-intro-skip");
+        }
+      })();
+    </script>
   </head>
-  <body class="home">
+  <body class="home is-home-intro">
     <h1 class="visually-hidden">ERRORMADE</h1>
     <canvas class="home-spray" id="home-spray" aria-hidden="true"></canvas>
     <div class="spray-cursor" id="home-spray-cursor" aria-hidden="true"></div>
     <div class="stage">
       <div class="home-cluster">
-        <div class="logo">
-          <img src="assets/logo.svg" width="203" height="120" alt="" />
+        <div class="logo home-intro-item" data-intro="logo">
+          <img src="assets/logo.svg" width="287" height="170" alt="" />
         </div>
 
-        <time class="link link-clock home-hover-target" id="live-clock">00:00:00</time>
-        <a class="link link-telegram home-hover-target" href="https://t.me/errormade" target="_blank" rel="noopener noreferrer">telegram</a>
-        <a class="link link-instagram home-hover-target" href="https://www.instagram.com/iamerrormade/" target="_blank" rel="noopener noreferrer">instagram</a>
-        <a class="link link-ui-works home-hover-target" href="#ui-works">ui works</a>
-        <a class="link link-graphic-works home-hover-target" href="#graphic-works">graphic works</a>
+        <time class="link link-clock home-hover-target home-intro-item" id="live-clock" data-intro="rest">00:00:00</time>
+        <a class="link link-telegram home-hover-target home-intro-item" data-intro="rest" href="https://t.me/errormade" target="_blank" rel="noopener noreferrer">telegram</a>
+        <a class="link link-instagram home-hover-target home-intro-item" data-intro="rest" href="https://www.instagram.com/iamerrormade/" target="_blank" rel="noopener noreferrer">instagram</a>
+        <a class="link link-ui-works home-hover-target home-intro-item" data-intro="rest" href="#ui-works">ui works</a>
+        <a class="link link-graphic-works home-hover-target home-intro-item" data-intro="rest" href="#graphic-works">graphic works</a>
         <div class="sandbox-links">
-          <a class="link link-sandbox-001 home-hover-target" href="https://errormade77.github.io/sandbox001/" target="_blank" rel="noopener noreferrer">sandbox:001</a>
-          <a class="link link-sandbox-002 home-hover-target" href="https://errormade77.github.io/sandbox002/" target="_blank" rel="noopener noreferrer">sandbox:002</a>
+          <a class="link link-sandbox-001 home-hover-target home-intro-item" data-intro="rest" href="https://errormade77.github.io/sandbox001/" target="_blank" rel="noopener noreferrer">sandbox:001</a>
+          <a class="link link-sandbox-002 home-hover-target home-intro-item" data-intro="rest" href="https://errormade77.github.io/sandbox002/" target="_blank" rel="noopener noreferrer">sandbox:002</a>
         </div>
 
-        <a class="howto-teaser home-hover-target" href="#guide">
+        <a class="howto-teaser home-hover-target home-intro-item" data-intro="rest" href="#guide">
           <span class="howto-teaser-image">
-            <img src="assets/poster-thumb.jpg" width="52" height="70" alt="" />
+            <img src="assets/poster-thumb.jpg" width="60" height="81" alt="" />
           </span>
           <span class="howto-teaser-text">how to throw the errormade
 sign</span>
@@ -37,7 +75,7 @@ sign</span>
       </div>
     </div>
 
-    <button class="uiworks-params home-params home-hover-target" id="home-params-open" type="button" hidden>parameters</button>
+    <button class="uiworks-params home-params" id="home-params-open" type="button" hidden>parameters</button>
     <div class="params-modal home-params-modal" id="home-params-modal" hidden>
       <div class="params-panel">
         <p class="params-title">parameters</p>
@@ -90,7 +128,7 @@ sign</span>
             </span>
           </label>
         </div>
-        <label class="params-check">
+        <label class="params-check params-check-blend">
           <input id="home-blend-difference" type="checkbox" checked />
           <span>difference blend</span>
         </label>
@@ -150,12 +188,87 @@ sign</span>
           </label>
           <button class="params-upload" id="home-spray-clear" type="button">clear canvas</button>
         </div>
+        <p class="params-title">intro</p>
+        <label class="params-field">
+          <span>logo blur</span>
+          <span class="params-width-row">
+            <input id="home-intro-logo-blur" type="range" min="0" max="24" step="0.5" value="0" />
+            <input id="home-intro-logo-blur-number" type="number" min="0" max="24" step="0.5" value="0" />
+          </span>
+        </label>
+        <label class="params-field">
+          <span>rest blur</span>
+          <span class="params-width-row">
+            <input id="home-intro-rest-blur" type="range" min="0" max="24" step="0.5" value="0" />
+            <input id="home-intro-rest-blur-number" type="number" min="0" max="24" step="0.5" value="0" />
+          </span>
+        </label>
+        <label class="params-field">
+          <span>intro speed</span>
+          <span class="params-width-row">
+            <input id="home-intro-speed" type="range" min="0.1" max="2" step="0.05" value="0.55" />
+            <input id="home-intro-speed-number" type="number" min="0.1" max="2" step="0.05" value="0.55" />
+          </span>
+        </label>
+        <label class="params-field">
+          <span>intro delay</span>
+          <span class="params-width-row">
+            <input id="home-intro-delay" type="range" min="0" max="2" step="0.01" value="0.25" />
+            <input id="home-intro-delay-number" type="number" min="0" max="2" step="0.01" value="0.25" />
+          </span>
+        </label>
+        <label class="params-field">
+          <span>logo scale</span>
+          <span class="params-width-row">
+            <input id="home-intro-logo-scale" type="range" min="0.2" max="2" step="0.05" value="1" />
+            <input id="home-intro-logo-scale-number" type="number" min="0.2" max="2" step="0.05" value="1" />
+          </span>
+        </label>
+        <label class="params-field">
+          <span>logo rise</span>
+          <span class="params-width-row">
+            <input id="home-intro-logo-rise" type="range" min="0" max="200" step="1" value="0" />
+            <input id="home-intro-logo-rise-number" type="number" min="0" max="200" step="1" value="0" />
+          </span>
+        </label>
+        <label class="params-field">
+          <span>rest scale</span>
+          <span class="params-width-row">
+            <input id="home-intro-rest-scale" type="range" min="0.2" max="2" step="0.05" value="0.85" />
+            <input id="home-intro-rest-scale-number" type="number" min="0.2" max="2" step="0.05" value="0.85" />
+          </span>
+        </label>
+        <label class="params-field">
+          <span>rest rise</span>
+          <span class="params-width-row">
+            <input id="home-intro-rest-rise" type="range" min="0" max="200" step="1" value="40" />
+            <input id="home-intro-rest-rise-number" type="number" min="0" max="200" step="1" value="40" />
+          </span>
+        </label>
+        <label class="params-check">
+          <input id="home-intro-rest-rise-random" type="checkbox" />
+          <span>rest rise random</span>
+        </label>
+        <label class="params-check">
+          <input id="home-intro-scramble" type="checkbox" />
+          <span>intro scramble</span>
+        </label>
+        <label class="params-check">
+          <input id="home-intro-randomize" type="checkbox" />
+          <span>intro randomize</span>
+        </label>
+        <button class="params-upload" id="home-intro-replay" type="button">replay intro</button>
         <button class="close params-close" id="home-params-close" type="button">close</button>
       </div>
     </div>
 
     <div class="uiworks-window" id="uiworks-window" role="dialog" aria-modal="true" aria-label="ui works" hidden>
       <div class="uiworks-stage">
+        <div class="uiworks-scrub-wrap" id="uiworks-scrub-wrap" hidden>
+          <div class="uiworks-column uiworks-scrub-column" id="uiworks-scrub-column">
+            <div class="uiworks-scrub" aria-hidden="true"></div>
+          </div>
+        </div>
         <div class="uiworks-column-wrap">
           <div class="uiworks-column" id="uiworks-column">
             <div class="uiworks-scrub" aria-hidden="true"></div>
@@ -170,12 +283,41 @@ sign</span>
       <div class="params-modal" id="uiworks-params-modal" hidden>
         <div class="params-panel">
           <p class="params-title">parameters</p>
-          <label class="params-field">
-            <span>column width</span>
+          <label class="params-field params-scrub-width-field">
+            <span>small column</span>
             <span class="params-width-row">
-              <input id="uiworks-width" type="range" min="120" max="1400" step="1" value="310" />
-              <input id="uiworks-width-number" type="number" min="120" max="1400" step="1" value="310" />
+              <input id="uiworks-width" type="range" min="64" max="800" step="1" value="310" />
+              <input id="uiworks-width-number" type="number" min="64" max="800" step="1" value="310" />
             </span>
+          </label>
+          <label class="params-field">
+            <span>small column order</span>
+            <select id="uiworks-scrub-order">
+              <option value="normal" selected>top to bottom</option>
+              <option value="reverse">bottom to top</option>
+            </select>
+          </label>
+          <label class="params-field">
+            <span>large column</span>
+            <span class="params-width-row">
+              <input id="uiworks-main-width" type="range" min="160" max="1600" step="1" value="1065" />
+              <input id="uiworks-main-width-number" type="number" min="160" max="1600" step="1" value="1065" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>large column align</span>
+            <select id="uiworks-main-align">
+              <option value="left" selected>left</option>
+              <option value="center">center</option>
+              <option value="right">right</option>
+            </select>
+          </label>
+          <label class="params-field">
+            <span>media size</span>
+            <select id="uiworks-media-fit">
+              <option value="width" selected>fit width</option>
+              <option value="height">fit height</option>
+            </select>
           </label>
           <label class="params-field">
             <span>scroll sensitivity</span>
@@ -191,21 +333,72 @@ sign</span>
               <input id="uiworks-scroll-smooth-number" type="number" min="0" max="90" step="1" value="90" />
             </span>
           </label>
-          <label class="params-check params-preview-field" id="uiworks-preview-toggle-field">
-            <input id="uiworks-preview-toggle" type="checkbox" checked />
-            <span>scroll preview</span>
-          </label>
-          <label class="params-check params-preview-field" id="uiworks-preview-fill-field" hidden>
-            <input id="uiworks-preview-fill" type="checkbox" checked />
-            <span>fill height</span>
-          </label>
-          <label class="params-field params-preview-field" id="uiworks-preview-width-field" hidden>
-            <span id="uiworks-preview-width-label">preview width</span>
+          <p class="params-title">column intro</p>
+          <label class="params-field">
+            <span>small blur</span>
             <span class="params-width-row">
-              <input id="uiworks-preview-width" type="range" min="200" max="1600" step="1" value="1065" />
-              <input id="uiworks-preview-width-number" type="number" min="200" max="1600" step="1" value="1065" />
+              <input id="uiworks-intro-small-blur" type="range" min="0" max="24" step="0.5" value="0" />
+              <input id="uiworks-intro-small-blur-number" type="number" min="0" max="24" step="0.5" value="0" />
             </span>
           </label>
+          <label class="params-field">
+            <span>large blur</span>
+            <span class="params-width-row">
+              <input id="uiworks-intro-large-blur" type="range" min="0" max="24" step="0.5" value="0" />
+              <input id="uiworks-intro-large-blur-number" type="number" min="0" max="24" step="0.5" value="0" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>intro speed</span>
+            <span class="params-width-row">
+              <input id="uiworks-intro-speed" type="range" min="0.1" max="2" step="0.05" value="0.55" />
+              <input id="uiworks-intro-speed-number" type="number" min="0.1" max="2" step="0.05" value="0.55" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>intro delay</span>
+            <span class="params-width-row">
+              <input id="uiworks-intro-delay" type="range" min="0" max="2" step="0.01" value="0.25" />
+              <input id="uiworks-intro-delay-number" type="number" min="0" max="2" step="0.01" value="0.25" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>small scale</span>
+            <span class="params-width-row">
+              <input id="uiworks-intro-small-scale" type="range" min="0.2" max="2" step="0.05" value="1" />
+              <input id="uiworks-intro-small-scale-number" type="number" min="0.2" max="2" step="0.05" value="1" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>small rise</span>
+            <span class="params-width-row">
+              <input id="uiworks-intro-small-rise" type="range" min="0" max="200" step="1" value="0" />
+              <input id="uiworks-intro-small-rise-number" type="number" min="0" max="200" step="1" value="0" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>large scale</span>
+            <span class="params-width-row">
+              <input id="uiworks-intro-large-scale" type="range" min="0.2" max="2" step="0.05" value="0.85" />
+              <input id="uiworks-intro-large-scale-number" type="number" min="0.2" max="2" step="0.05" value="0.85" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>large rise</span>
+            <span class="params-width-row">
+              <input id="uiworks-intro-large-rise" type="range" min="0" max="200" step="1" value="40" />
+              <input id="uiworks-intro-large-rise-number" type="number" min="0" max="200" step="1" value="40" />
+            </span>
+          </label>
+          <label class="params-check">
+            <input id="uiworks-intro-large-rise-random" type="checkbox" />
+            <span>large rise random</span>
+          </label>
+          <label class="params-check">
+            <input id="uiworks-intro-randomize" type="checkbox" />
+            <span>intro randomize</span>
+          </label>
+          <button class="params-upload" id="uiworks-intro-replay" type="button">replay column intro</button>
           <button class="params-upload" id="uiworks-upload" type="button">upload media</button>
           <input
             class="visually-hidden"
@@ -222,6 +415,11 @@ sign</span>
 
     <div class="uiworks-window" id="graphicworks-window" role="dialog" aria-modal="true" aria-label="graphic works" hidden>
       <div class="uiworks-stage">
+        <div class="uiworks-scrub-wrap" id="graphicworks-scrub-wrap" hidden>
+          <div class="uiworks-column uiworks-scrub-column" id="graphicworks-scrub-column">
+            <div class="uiworks-scrub" aria-hidden="true"></div>
+          </div>
+        </div>
         <div class="uiworks-column-wrap">
           <div class="uiworks-column" id="graphicworks-column">
             <div class="uiworks-scrub" aria-hidden="true"></div>
@@ -236,12 +434,41 @@ sign</span>
       <div class="params-modal" id="graphicworks-params-modal" hidden>
         <div class="params-panel">
           <p class="params-title">parameters</p>
-          <label class="params-field">
-            <span>column width</span>
+          <label class="params-field params-scrub-width-field">
+            <span>small column</span>
             <span class="params-width-row">
-              <input id="graphicworks-width" type="range" min="120" max="1400" step="1" value="310" />
-              <input id="graphicworks-width-number" type="number" min="120" max="1400" step="1" value="310" />
+              <input id="graphicworks-width" type="range" min="64" max="800" step="1" value="310" />
+              <input id="graphicworks-width-number" type="number" min="64" max="800" step="1" value="310" />
             </span>
+          </label>
+          <label class="params-field">
+            <span>small column order</span>
+            <select id="graphicworks-scrub-order">
+              <option value="normal" selected>top to bottom</option>
+              <option value="reverse">bottom to top</option>
+            </select>
+          </label>
+          <label class="params-field">
+            <span>large column</span>
+            <span class="params-width-row">
+              <input id="graphicworks-main-width" type="range" min="160" max="1600" step="1" value="1065" />
+              <input id="graphicworks-main-width-number" type="number" min="160" max="1600" step="1" value="1065" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>large column align</span>
+            <select id="graphicworks-main-align">
+              <option value="left" selected>left</option>
+              <option value="center">center</option>
+              <option value="right">right</option>
+            </select>
+          </label>
+          <label class="params-field">
+            <span>media size</span>
+            <select id="graphicworks-media-fit">
+              <option value="width" selected>fit width</option>
+              <option value="height">fit height</option>
+            </select>
           </label>
           <label class="params-field">
             <span>scroll sensitivity</span>
@@ -257,21 +484,72 @@ sign</span>
               <input id="graphicworks-scroll-smooth-number" type="number" min="0" max="90" step="1" value="90" />
             </span>
           </label>
-          <label class="params-check params-preview-field" id="graphicworks-preview-toggle-field">
-            <input id="graphicworks-preview-toggle" type="checkbox" checked />
-            <span>scroll preview</span>
-          </label>
-          <label class="params-check params-preview-field" id="graphicworks-preview-fill-field" hidden>
-            <input id="graphicworks-preview-fill" type="checkbox" checked />
-            <span>fill height</span>
-          </label>
-          <label class="params-field params-preview-field" id="graphicworks-preview-width-field" hidden>
-            <span id="graphicworks-preview-width-label">preview width</span>
+          <p class="params-title">column intro</p>
+          <label class="params-field">
+            <span>small blur</span>
             <span class="params-width-row">
-              <input id="graphicworks-preview-width" type="range" min="200" max="1600" step="1" value="1065" />
-              <input id="graphicworks-preview-width-number" type="number" min="200" max="1600" step="1" value="1065" />
+              <input id="graphicworks-intro-small-blur" type="range" min="0" max="24" step="0.5" value="0" />
+              <input id="graphicworks-intro-small-blur-number" type="number" min="0" max="24" step="0.5" value="0" />
             </span>
           </label>
+          <label class="params-field">
+            <span>large blur</span>
+            <span class="params-width-row">
+              <input id="graphicworks-intro-large-blur" type="range" min="0" max="24" step="0.5" value="0" />
+              <input id="graphicworks-intro-large-blur-number" type="number" min="0" max="24" step="0.5" value="0" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>intro speed</span>
+            <span class="params-width-row">
+              <input id="graphicworks-intro-speed" type="range" min="0.1" max="2" step="0.05" value="0.55" />
+              <input id="graphicworks-intro-speed-number" type="number" min="0.1" max="2" step="0.05" value="0.55" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>intro delay</span>
+            <span class="params-width-row">
+              <input id="graphicworks-intro-delay" type="range" min="0" max="2" step="0.01" value="0.25" />
+              <input id="graphicworks-intro-delay-number" type="number" min="0" max="2" step="0.01" value="0.25" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>small scale</span>
+            <span class="params-width-row">
+              <input id="graphicworks-intro-small-scale" type="range" min="0.2" max="2" step="0.05" value="1" />
+              <input id="graphicworks-intro-small-scale-number" type="number" min="0.2" max="2" step="0.05" value="1" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>small rise</span>
+            <span class="params-width-row">
+              <input id="graphicworks-intro-small-rise" type="range" min="0" max="200" step="1" value="0" />
+              <input id="graphicworks-intro-small-rise-number" type="number" min="0" max="200" step="1" value="0" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>large scale</span>
+            <span class="params-width-row">
+              <input id="graphicworks-intro-large-scale" type="range" min="0.2" max="2" step="0.05" value="0.85" />
+              <input id="graphicworks-intro-large-scale-number" type="number" min="0.2" max="2" step="0.05" value="0.85" />
+            </span>
+          </label>
+          <label class="params-field">
+            <span>large rise</span>
+            <span class="params-width-row">
+              <input id="graphicworks-intro-large-rise" type="range" min="0" max="200" step="1" value="40" />
+              <input id="graphicworks-intro-large-rise-number" type="number" min="0" max="200" step="1" value="40" />
+            </span>
+          </label>
+          <label class="params-check">
+            <input id="graphicworks-intro-large-rise-random" type="checkbox" />
+            <span>large rise random</span>
+          </label>
+          <label class="params-check">
+            <input id="graphicworks-intro-randomize" type="checkbox" />
+            <span>intro randomize</span>
+          </label>
+          <button class="params-upload" id="graphicworks-intro-replay" type="button">replay column intro</button>
           <button class="params-upload" id="graphicworks-upload" type="button">upload media</button>
           <input
             class="visually-hidden"
@@ -758,6 +1036,6 @@ sign</span>
   }
 ]
     </script>
-    <script src="script.js"></script>
+    <script src="script.js?v=20260911-ship"></script>
   </body>
 </html>

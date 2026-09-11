@@ -3,7 +3,49 @@
     return String(value).padStart(2, "0");
   }
 
+  var clockPaused = false;
+
+  // --- Shared params (dev-params.json) — desktop + phone stay in sync via local server ---
+  var sharedParamsTimer = 0;
+  var sharedParamsSilent = false;
+  function collectSharedParams() {
+    var data = { __stamp: String(Date.now()) };
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var key = localStorage.key(i);
+        if (key && key.indexOf("errormade-") === 0) {
+          data[key] = localStorage.getItem(key);
+        }
+      }
+    } catch (error) {}
+    return data;
+  }
+  function pushSharedParams() {
+    sharedParamsTimer = 0;
+    if (sharedParamsSilent) return;
+    try {
+      fetch("dev-params.json", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(collectSharedParams()),
+      }).catch(function () {});
+    } catch (error) {}
+  }
+  function scheduleSharedParamsPush() {
+    if (sharedParamsSilent) return;
+    window.clearTimeout(sharedParamsTimer);
+    sharedParamsTimer = window.setTimeout(pushSharedParams, 280);
+  }
+  try {
+    var nativeSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      nativeSetItem.call(this, key, value);
+      if (String(key).indexOf("errormade-") === 0) scheduleSharedParamsPush();
+    };
+  } catch (error) {}
+
   function tickClock() {
+    if (clockPaused) return;
     var clock = document.getElementById("live-clock");
     if (!clock) return;
     var now = new Date();
@@ -14,14 +56,195 @@
   tickClock();
   setInterval(tickClock, 1000);
 
-  var compactHomeMq = window.matchMedia("(max-width: 720px)");
+  // Intro via rAF + !important inline styles.
+  // iOS: parent zoom() kills descendant filter:blur — no cluster zoom during intro.
+  // iOS: avoid permanent DOM wraps (they ate link underlines).
+  var COMPACT_MQ =
+    "(max-width: 1280px), (pointer: coarse), (any-pointer: coarse), (hover: none)";
+  var homeClusterZoom = "";
+
+  function unwrapIntroBlurInner(root) {
+    if (!root) return;
+    var inners = root.querySelectorAll ? root.querySelectorAll(".intro-blur-inner") : [];
+    Array.prototype.forEach.call(inners, function (inner) {
+      var parent = inner.parentNode;
+      if (!parent) return;
+      while (inner.firstChild) parent.insertBefore(inner.firstChild, inner);
+      parent.removeChild(inner);
+    });
+  }
+
+  function introBlurNodes(el) {
+    if (!el) return [];
+    if (el.classList.contains("logo")) {
+      var img = el.querySelector("img");
+      return img ? [img] : [];
+    }
+    if (el.classList.contains("howto-teaser")) {
+      var nodes = [];
+      var image = el.querySelector(".howto-teaser-image");
+      var text = el.querySelector(".howto-teaser-text");
+      if (image) nodes.push(image);
+      if (text) nodes.push(text);
+      return nodes.length ? nodes : [el];
+    }
+    if (el.classList.contains("uiworks-scrub-wrap") || el.classList.contains("uiworks-column-wrap")) {
+      var child = el.firstElementChild;
+      return child ? [child] : [el];
+    }
+    // Links / clock / params — blur on the element (desktop-identical).
+    return [el];
+  }
+
+  function clearIntroBlur(el) {
+    introBlurNodes(el).forEach(function (node) {
+      node.style.removeProperty("filter");
+      node.style.removeProperty("-webkit-filter");
+    });
+    if (el) {
+      el.style.removeProperty("filter");
+      el.style.removeProperty("-webkit-filter");
+    }
+  }
+
+  function clearIntroInline(el) {
+    if (!el) return;
+    unwrapIntroBlurInner(el);
+    el.style.removeProperty("opacity");
+    el.style.removeProperty("filter");
+    el.style.removeProperty("-webkit-filter");
+    el.style.removeProperty("transform");
+    el.style.removeProperty("transform-origin");
+    el.style.removeProperty("transition");
+    el.style.removeProperty("will-change");
+    el.style.removeProperty("pointer-events");
+    el.style.removeProperty("mix-blend-mode");
+    el.style.removeProperty("margin-top");
+    el.style.removeProperty("zoom");
+    el.style.removeProperty("font-size");
+    clearIntroBlur(el);
+  }
+
+  function setIntroBlur(el, blur) {
+    var value = blur > 0.05 ? "blur(" + blur + "px)" : "";
+    var nodes = introBlurNodes(el);
+    var blurOnChildOnly = nodes.length > 0 && nodes.indexOf(el) === -1;
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (value) {
+        node.style.setProperty("filter", value, "important");
+        node.style.setProperty("-webkit-filter", value, "important");
+      } else {
+        node.style.removeProperty("filter");
+        node.style.removeProperty("-webkit-filter");
+      }
+    }
+    if (blurOnChildOnly) {
+      el.style.removeProperty("filter");
+      el.style.removeProperty("-webkit-filter");
+    }
+  }
+
+  function setIntroPaint(el, opacity, blur, rise, scale, origin) {
+    el.style.setProperty("transition", "none", "important");
+    el.style.setProperty("opacity", String(opacity), "important");
+    el.style.setProperty("mix-blend-mode", "normal", "important");
+    el.style.setProperty("pointer-events", "none", "important");
+    el.style.removeProperty("margin-top");
+    el.style.removeProperty("zoom");
+    el.style.removeProperty("font-size");
+    if (origin) el.style.setProperty("transform-origin", origin, "important");
+    el.style.setProperty(
+      "transform",
+      "translate3d(0, " + rise + "px, 0) scale(" + scale + ")",
+      "important"
+    );
+    setIntroBlur(el, blur);
+  }
+
+  function setIntroFrom(el, from, origin) {
+    var rise = from && from.rise != null ? Number(from.rise) : 0;
+    var scale = from && from.scale != null ? Number(from.scale) : 1;
+    var blur = from && from.blur != null ? Number(from.blur) : 0;
+    if (!isFinite(rise)) rise = 0;
+    if (!isFinite(scale)) scale = 1;
+    if (!isFinite(blur)) blur = 0;
+    setIntroPaint(el, 0, blur, rise, scale, origin || (from && from.origin) || "center center");
+  }
+
+  function animateIntroEl(el, from, durationMs, isCancelled) {
+    return new Promise(function (resolve) {
+      if (!el) {
+        resolve();
+        return;
+      }
+      var rise = from && from.rise != null ? Number(from.rise) : 0;
+      var scale = from && from.scale != null ? Number(from.scale) : 1;
+      var blur = from && from.blur != null ? Number(from.blur) : 0;
+      if (!isFinite(rise)) rise = 0;
+      if (!isFinite(scale)) scale = 1;
+      if (!isFinite(blur)) blur = 0;
+      if (!(durationMs > 0)) durationMs = 180;
+      var origin = (from && from.origin) || "center center";
+
+      setIntroFrom(el, { blur: blur, rise: rise, scale: scale, origin: origin }, origin);
+      void el.offsetWidth;
+
+      var start = performance.now();
+      var settled = false;
+      var raf = 0;
+      function settle() {
+        if (settled) return;
+        settled = true;
+        if (raf) cancelAnimationFrame(raf);
+        window.clearTimeout(failsafe);
+        setIntroPaint(el, 1, 0, 0, 1, origin);
+        el.style.removeProperty("pointer-events");
+        resolve();
+      }
+      var failsafe = window.setTimeout(settle, durationMs + 200);
+
+      function frame(now) {
+        if (settled) return;
+        if (isCancelled && isCancelled()) {
+          settle();
+          return;
+        }
+        var t = Math.min(1, (now - start) / durationMs);
+        var e = 1 - Math.pow(1 - t, 3);
+        setIntroPaint(el, e, blur * (1 - e), rise * (1 - e), scale + (1 - scale) * e, origin);
+        if (t < 1) raf = requestAnimationFrame(frame);
+        else settle();
+      }
+      raf = requestAnimationFrame(frame);
+    });
+  }
+
+  function syncHomeClusterScale() {
+    var cluster = document.querySelector(".home-cluster");
+    if (!cluster) return;
+    // Never zoom the cluster — parent zoom kills filter:blur on iOS Safari.
+    // Mobile artboard is already 393px; center it and let narrow phones overflow slightly.
+    homeClusterZoom = "";
+    cluster.style.removeProperty("zoom");
+    document.documentElement.style.removeProperty("--home-fit");
+  }
+
+  var compactHomeMq = window.matchMedia(COMPACT_MQ);
   function homeOverlayOpen() {
-    return !!document.querySelector(".uiworks-window.is-open, .howto-window.is-open");
+    return !!document.querySelector(
+      ".uiworks-window.is-open, .howto-window.is-open, .params-modal.is-open"
+    );
   }
   document.addEventListener(
     "touchmove",
     function (event) {
       if (!compactHomeMq.matches || homeOverlayOpen()) return;
+      if (event.target && event.target.closest) {
+        if (event.target.closest(".params-panel, .params-modal, .howto-guide, .uiworks-column")) {
+          return;
+        }
+      }
       event.preventDefault();
     },
     { passive: false }
@@ -63,10 +286,15 @@
       modal.classList.remove("is-open");
       modal.hidden = true;
     });
+    document.body.classList.remove("is-params-open");
   }
+
+  var settleHomeIntro = function () {};
+  var playHomeIntro = function () {};
 
   function closeAll(push) {
     closeAllParams();
+    var anyWasOpen = false;
     Object.keys(overlays).forEach(function (hash) {
       var item = overlays[hash];
       if (!item.el) return;
@@ -74,13 +302,16 @@
       item.el.classList.remove("is-open");
       item.el.hidden = true;
       if (wasOpen && item.onClose) item.onClose(item.el);
+      if (wasOpen) anyWasOpen = true;
     });
+    if (anyWasOpen) playHomeIntro();
     if (push && location.hash) {
       history.pushState({ overlay: false }, "", location.pathname + location.search);
     }
   }
 
   function openOverlay(hash, push) {
+    settleHomeIntro();
     Object.keys(overlays).forEach(function (key) {
       var item = overlays[key];
       if (!item.el) return;
@@ -125,7 +356,6 @@
     if (closeBtn) {
       closeBtn.addEventListener("click", function () {
         closeAll(true);
-        item.trigger.focus();
       });
     }
   });
@@ -150,6 +380,9 @@
     if (openParamsModal) {
       openParamsModal.classList.remove("is-open");
       openParamsModal.hidden = true;
+      if (!document.querySelector(".params-modal.is-open")) {
+        document.body.classList.remove("is-params-open");
+      }
       var paramsWin = openParamsModal.closest(".uiworks-window");
       var paramsBtn =
         (paramsWin && paramsWin.querySelector(".uiworks-params")) ||
@@ -165,12 +398,32 @@
 
   initHomeParams();
   initHomeSpray();
+  syncHomeClusterScale();
+  window.addEventListener("resize", syncHomeClusterScale);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", syncHomeClusterScale);
+  }
+  if (compactHomeMq.addEventListener) {
+    compactHomeMq.addEventListener("change", syncHomeClusterScale);
+  } else if (compactHomeMq.addListener) {
+    compactHomeMq.addListener(syncHomeClusterScale);
+  }
+
+  var WORKS_LAYOUT_PREFIX = "errormade-graphicworks";
+  var worksLayoutListeners = [];
+
+  function publishWorksLayout(originId) {
+    worksLayoutListeners.forEach(function (entry) {
+      if (!entry || entry.id === originId || typeof entry.reload !== "function") return;
+      entry.reload();
+    });
+  }
 
   initWorksPanel({
     prefix: "uiworks",
     dbName: "errormade-internal",
     store: "uiworks-media",
-    keyPrefix: "errormade-uiworks",
+    keyPrefix: WORKS_LAYOUT_PREFIX,
     hash: "#ui-works",
     manifest: "assets/works/ui.json",
     manifestId: "uiworks-manifest",
@@ -179,8 +432,7 @@
     prefix: "graphicworks",
     dbName: "errormade-graphicworks",
     store: "media",
-    keyPrefix: "errormade-graphicworks",
-    seedFrom: "errormade-uiworks",
+    keyPrefix: WORKS_LAYOUT_PREFIX,
     hash: "#graphic-works",
     manifest: "assets/works/graphic.json",
     manifestId: "graphicworks-manifest",
@@ -306,6 +558,8 @@
     }
 
     function applyBlendDifference(on, persist) {
+      // Difference blend is broken on iPhone/Safari touch — never enable there.
+      if (window.matchMedia(COMPACT_MQ).matches) on = false;
       blendToggle.checked = on;
       document.body.classList.toggle("is-blend-difference", on);
       if (persist) writeStorage(BLEND_KEY, on ? "1" : "0");
@@ -397,16 +651,26 @@
     function openParams() {
       paramsModal.hidden = false;
       paramsModal.classList.add("is-open");
+      document.body.classList.add("is-params-open");
     }
 
     function closeParams() {
       paramsModal.classList.remove("is-open");
       paramsModal.hidden = true;
+      document.body.classList.remove("is-params-open");
     }
 
-    closeBtn.addEventListener("click", function () {
+    openBtn.addEventListener("click", openParams);
+
+    closeBtn.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
       closeParams();
       openBtn.focus();
+    });
+
+    paramsModal.addEventListener("click", function (event) {
+      if (event.target === paramsModal) closeParams();
     });
 
     toggle.addEventListener("change", function () {
@@ -474,8 +738,612 @@
 
     applyFollowEnabled(true, false);
     applyHideCursor(false, false);
-    applyBlendDifference(true, false);
+    applyBlendDifference(readStorage(BLEND_KEY, "1") === "1", false);
     applyEnabled(true, false);
+    if (compactHomeMq && compactHomeMq.addEventListener) {
+      compactHomeMq.addEventListener("change", function () {
+        applyBlendDifference(readStorage(BLEND_KEY, "1") === "1", false);
+      });
+    }
+
+    initHomeIntro({
+      logoBlurRange: document.getElementById("home-intro-logo-blur"),
+      logoBlurNumber: document.getElementById("home-intro-logo-blur-number"),
+      restBlurRange: document.getElementById("home-intro-rest-blur"),
+      restBlurNumber: document.getElementById("home-intro-rest-blur-number"),
+      speedRange: document.getElementById("home-intro-speed"),
+      speedNumber: document.getElementById("home-intro-speed-number"),
+      delayRange: document.getElementById("home-intro-delay"),
+      delayNumber: document.getElementById("home-intro-delay-number"),
+      logoScaleRange: document.getElementById("home-intro-logo-scale"),
+      logoScaleNumber: document.getElementById("home-intro-logo-scale-number"),
+      logoRiseRange: document.getElementById("home-intro-logo-rise"),
+      logoRiseNumber: document.getElementById("home-intro-logo-rise-number"),
+      restScaleRange: document.getElementById("home-intro-rest-scale"),
+      restScaleNumber: document.getElementById("home-intro-rest-scale-number"),
+      restRiseRange: document.getElementById("home-intro-rest-rise"),
+      restRiseNumber: document.getElementById("home-intro-rest-rise-number"),
+      restRiseRandomToggle: document.getElementById("home-intro-rest-rise-random"),
+      scrambleToggle: document.getElementById("home-intro-scramble"),
+      randomizeToggle: document.getElementById("home-intro-randomize"),
+      replayBtn: document.getElementById("home-intro-replay"),
+      bindNumber: bindNumber,
+      writeStorage: writeStorage,
+      readStorage: readStorage,
+      clamp: clamp,
+    });
+  }
+
+  function initHomeIntro(opts) {
+    var logoBlurRange = opts.logoBlurRange;
+    var logoBlurNumber = opts.logoBlurNumber;
+    var restBlurRange = opts.restBlurRange;
+    var restBlurNumber = opts.restBlurNumber;
+    var speedRange = opts.speedRange;
+    var speedNumber = opts.speedNumber;
+    var delayRange = opts.delayRange;
+    var delayNumber = opts.delayNumber;
+    var logoScaleRange = opts.logoScaleRange;
+    var logoScaleNumber = opts.logoScaleNumber;
+    var logoRiseRange = opts.logoRiseRange;
+    var logoRiseNumber = opts.logoRiseNumber;
+    var restScaleRange = opts.restScaleRange;
+    var restScaleNumber = opts.restScaleNumber;
+    var restRiseRange = opts.restRiseRange;
+    var restRiseNumber = opts.restRiseNumber;
+    var restRiseRandomToggle = opts.restRiseRandomToggle;
+    var scrambleToggle = opts.scrambleToggle;
+    var randomizeToggle = opts.randomizeToggle;
+    var replayBtn = opts.replayBtn;
+    if (
+      !logoBlurRange ||
+      !logoBlurNumber ||
+      !restBlurRange ||
+      !restBlurNumber ||
+      !speedRange ||
+      !speedNumber ||
+      !delayRange ||
+      !delayNumber ||
+      !logoScaleRange ||
+      !logoScaleNumber ||
+      !logoRiseRange ||
+      !logoRiseNumber ||
+      !restScaleRange ||
+      !restScaleNumber ||
+      !restRiseRange ||
+      !restRiseNumber ||
+      !restRiseRandomToggle ||
+      !scrambleToggle ||
+      !randomizeToggle ||
+      !replayBtn
+    ) {
+      return;
+    }
+
+    var INTRO_LOGO_BLUR_KEY = "errormade-home-intro-logo-blur";
+    var INTRO_REST_BLUR_KEY = "errormade-home-intro-rest-blur";
+    var INTRO_SPEED_KEY = "errormade-home-intro-speed";
+    var INTRO_DELAY_KEY = "errormade-home-intro-delay";
+    var INTRO_LOGO_SCALE_KEY = "errormade-home-intro-logo-scale";
+    var INTRO_LOGO_RISE_KEY = "errormade-home-intro-logo-rise";
+    var INTRO_REST_SCALE_KEY = "errormade-home-intro-rest-scale";
+    var INTRO_REST_RISE_KEY = "errormade-home-intro-rest-rise";
+    var INTRO_REST_RISE_RANDOM_KEY = "errormade-home-intro-rest-rise-random";
+    var INTRO_SCRAMBLE_KEY = "errormade-home-intro-scramble";
+    var INTRO_RANDOMIZE_KEY = "errormade-home-intro-randomize";
+    var SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    var introToken = 0;
+    var introSavedHoverBlur = false;
+    var introSavedBlendDifference = false;
+    var scrambleOn = false;
+    var randomizeOn = false;
+    var restRiseRandomOn = false;
+    var speedSec = 0.55;
+    var delaySec = 0.25;
+    var restRisePx = 40;
+    var restBlurPx = 0;
+    var restScale = 0.85;
+    var logoBlurPx = 0;
+    var logoScale = 1;
+    var logoRisePx = 0;
+
+    function introItems() {
+      return Array.prototype.slice.call(document.querySelectorAll(".home-intro-item"));
+    }
+
+    function scrambleTarget(el) {
+      if (!el || el.getAttribute("data-intro") === "logo") return null;
+      if (el.classList.contains("howto-teaser")) {
+        return el.querySelector(".howto-teaser-text") || null;
+      }
+      return el;
+    }
+
+    function storeOriginalText(el) {
+      var target = scrambleTarget(el);
+      if (!target) return;
+      if (target.dataset.introText == null) {
+        target.dataset.introText = target.textContent;
+      }
+    }
+
+    function restoreOriginalText(el) {
+      var target = scrambleTarget(el);
+      if (!target || target.dataset.introText == null) return;
+      target.textContent = target.dataset.introText;
+    }
+
+    function scrambleElement(el, durationMs, token) {
+      var target = scrambleTarget(el);
+      if (!target) return Promise.resolve();
+      unwrapIntroBlurInner(el);
+      storeOriginalText(el);
+      var original = target.dataset.introText || target.textContent;
+      if (!original) return Promise.resolve();
+      target.dataset.introText = original;
+
+      return new Promise(function (resolve) {
+        var start = performance.now();
+        var done = false;
+        var raf = 0;
+        function finish() {
+          if (done) return;
+          done = true;
+          if (raf) cancelAnimationFrame(raf);
+          if (token === introToken) target.textContent = original;
+          resolve();
+        }
+        function tick(now) {
+          if (token !== introToken) {
+            finish();
+            return;
+          }
+          var t = Math.min(1, (now - start) / Math.max(durationMs, 1));
+          var reveal = Math.floor(t * original.length);
+          var out = "";
+          for (var i = 0; i < original.length; i++) {
+            var ch = original.charAt(i);
+            if (ch === " " || ch === "\n" || ch === "\r" || ch === "\t") {
+              out += ch;
+            } else if (i < reveal) {
+              out += ch;
+            } else {
+              out += SCRAMBLE_CHARS.charAt(Math.floor(Math.random() * SCRAMBLE_CHARS.length));
+            }
+          }
+          target.textContent = out;
+          if (t >= 1) {
+            finish();
+            return;
+          }
+          raf = requestAnimationFrame(tick);
+        }
+        raf = requestAnimationFrame(tick);
+      });
+    }
+
+    function wait(ms, token) {
+      if (!(ms > 0)) return Promise.resolve();
+      return waitUntil(performance.now() + ms, token);
+    }
+
+    function waitUntil(deadline, token) {
+      return new Promise(function (resolve) {
+        function tick(now) {
+          if (token != null && token !== introToken) {
+            resolve();
+            return;
+          }
+          if (now >= deadline) {
+            resolve();
+            return;
+          }
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      });
+    }
+
+    function nextFrame() {
+      return new Promise(function (resolve) {
+        requestAnimationFrame(function () {
+          requestAnimationFrame(resolve);
+        });
+      });
+    }
+
+    function shuffle(list) {
+      var arr = list.slice();
+      for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+      }
+      return arr;
+    }
+
+    function clearIntroHover() {
+      document.body.classList.remove("is-home-hovering");
+      Array.prototype.forEach.call(document.querySelectorAll(".home-hover-target.is-hovered"), function (node) {
+        node.classList.remove("is-hovered");
+        node.style.removeProperty("--home-hover-x");
+        node.style.removeProperty("--home-hover-y");
+      });
+    }
+
+    function applyIntroScramble(on, persist) {
+      scrambleOn = on;
+      scrambleToggle.checked = on;
+      if (persist) opts.writeStorage(INTRO_SCRAMBLE_KEY, on ? "1" : "0");
+    }
+
+    function applyIntroRandomize(on, persist) {
+      randomizeOn = on;
+      randomizeToggle.checked = on;
+      if (persist) opts.writeStorage(INTRO_RANDOMIZE_KEY, on ? "1" : "0");
+    }
+
+    function applyIntroRestRiseRandom(on, persist) {
+      restRiseRandomOn = on;
+      restRiseRandomToggle.checked = on;
+      if (persist) opts.writeStorage(INTRO_REST_RISE_RANDOM_KEY, on ? "1" : "0");
+    }
+
+    function applyIntroSpeed(next) {
+      speedSec = next;
+      document.body.style.setProperty("--home-intro-speed", next + "s");
+    }
+
+    function applyIntroDelay(next) {
+      delaySec = next;
+    }
+
+    function applyIntroLogoBlur(next) {
+      logoBlurPx = next;
+      document.body.style.setProperty("--home-intro-logo-blur", next + "px");
+      syncLogoIntroSkip();
+    }
+
+    function applyIntroRestBlur(next) {
+      restBlurPx = next;
+      document.body.style.setProperty("--home-intro-rest-blur", next + "px");
+    }
+
+    function applyIntroLogoScale(next) {
+      logoScale = next;
+      document.body.style.setProperty("--home-intro-logo-scale", String(next));
+      syncLogoIntroSkip();
+    }
+
+    function applyIntroLogoRise(next) {
+      logoRisePx = next;
+      document.body.style.setProperty("--home-intro-logo-rise", next + "px");
+      syncLogoIntroSkip();
+    }
+
+    function logoIntroIdle() {
+      return logoBlurPx <= 0 && logoRisePx <= 0 && Math.abs(logoScale - 1) < 0.001;
+    }
+
+    function syncLogoIntroSkip() {
+      var skip = logoIntroIdle();
+      document.documentElement.classList.toggle("is-logo-intro-skip", skip);
+      document.body.classList.toggle("is-logo-intro-skip", skip);
+    }
+
+    function applyIntroRestScale(next) {
+      restScale = next;
+      document.body.style.setProperty("--home-intro-rest-scale", String(next));
+    }
+
+    function applyIntroRestRise(next) {
+      restRisePx = next;
+      document.body.style.setProperty("--home-intro-rest-rise", next + "px");
+    }
+
+    function clearItemRise(el) {
+      el.style.removeProperty("--home-intro-item-rise");
+    }
+
+    function assignRestRises(rest) {
+      rest.forEach(function (el) {
+        if (!restRiseRandomOn || restRisePx <= 0) {
+          clearItemRise(el);
+          return;
+        }
+        var rise = Math.round(Math.random() * restRisePx);
+        el.style.setProperty("--home-intro-item-rise", rise + "px");
+      });
+    }
+
+    function introFromFor(el) {
+      if (el.getAttribute("data-intro") === "logo") {
+        return { blur: logoBlurPx, rise: logoRisePx, scale: logoScale, origin: "center center" };
+      }
+      var rise = restRisePx;
+      var custom = el.style.getPropertyValue("--home-intro-item-rise");
+      if (custom) {
+        var parsed = parseFloat(custom);
+        if (!isNaN(parsed)) rise = parsed;
+      }
+      return { blur: restBlurPx, rise: rise, scale: restScale, origin: "center center" };
+    }
+
+    function restoreIntroBodyFlags() {
+      if (introSavedHoverBlur) document.body.classList.add("is-hover-blur");
+      introSavedHoverBlur = false;
+      if (introSavedBlendDifference) document.body.classList.add("is-blend-difference");
+      introSavedBlendDifference = false;
+    }
+
+    function finishIntro(token) {
+      if (token !== introToken) return;
+      clockPaused = false;
+      document.body.classList.remove("is-home-intro");
+      restoreIntroBodyFlags();
+      introItems().forEach(function (el) {
+        el.classList.remove("is-intro-visible");
+        clearIntroInline(el);
+        restoreOriginalText(el);
+        clearItemRise(el);
+      });
+      syncHomeClusterScale();
+      tickClock();
+    }
+
+    function settleIntro() {
+      // Stop in-progress intro without replaying (e.g. when opening an overlay).
+      introToken += 1;
+      clockPaused = false;
+      document.body.classList.remove("is-home-intro");
+      restoreIntroBodyFlags();
+      introItems().forEach(function (el) {
+        el.classList.remove("is-intro-visible");
+        clearIntroInline(el);
+        restoreOriginalText(el);
+        clearItemRise(el);
+      });
+      syncHomeClusterScale();
+      tickClock();
+    }
+
+    // playIntro is a function declaration below — hoisted in this scope.
+    settleHomeIntro = settleIntro;
+    playHomeIntro = playIntro;
+
+    function revealItem(el, token) {
+      if (token !== introToken) return Promise.resolve();
+      el.classList.remove("is-intro-visible");
+      var durationMs = Math.max(180, speedSec * 1000);
+      var motion = animateIntroEl(el, introFromFor(el), durationMs, function () {
+        return token !== introToken;
+      }).then(function () {
+        if (token !== introToken) return;
+        el.classList.add("is-intro-visible");
+        clearIntroInline(el);
+      });
+      if (!scrambleOn) return motion;
+      return Promise.all([motion, scrambleElement(el, durationMs, token)]);
+    }
+
+    function randomizeGapSec(staggerSec, count) {
+      var n = Math.max(1, count || 1);
+      // Explicit delay: use as-is (absolute schedule below keeps mobile ≈ desktop).
+      if (staggerSec != null && staggerSec > 0) return staggerSec;
+      // delay 0: dense cascade — total span capped near one intro speed.
+      var gapSec = Math.max(0.02, speedSec * 0.12);
+      if (n > 1) {
+        var maxSpan = Math.max(0.06, speedSec * 0.7);
+        var span = gapSec * (n - 1);
+        if (span > maxSpan) gapSec = maxSpan / (n - 1);
+      }
+      return gapSec;
+    }
+
+    function revealRest(rest, token, staggerSec) {
+      var list = randomizeOn ? shuffle(rest) : rest.slice();
+      if (!randomizeOn) {
+        return Promise.all(
+          list.map(function (el) {
+            return revealItem(el, token);
+          })
+        );
+      }
+
+      var gapMs = randomizeGapSec(staggerSec, list.length) * 1000;
+      var t0 = performance.now();
+      return Promise.all(
+        list.map(function (el, i) {
+          return waitUntil(t0 + gapMs * i, token).then(function () {
+            if (token !== introToken) return;
+            return revealItem(el, token);
+          });
+        })
+      );
+    }
+
+    function introStaggerSec() {
+      return delaySec > 0 ? delaySec : 0;
+    }
+
+    function playIntro() {
+      var token = ++introToken;
+      var items = introItems();
+      var logo = items.filter(function (el) {
+        return el.getAttribute("data-intro") === "logo";
+      });
+      var rest = items.filter(function (el) {
+        return el.getAttribute("data-intro") !== "logo";
+      });
+      var skipLogo = logoIntroIdle();
+      syncLogoIntroSkip();
+
+      clockPaused = true;
+      clearIntroHover();
+      // Hover-blur + difference blend both break intro paint on iOS Safari.
+      introSavedHoverBlur = document.body.classList.contains("is-hover-blur");
+      introSavedBlendDifference = document.body.classList.contains("is-blend-difference");
+      document.body.classList.remove("is-hover-blur");
+      document.body.classList.remove("is-blend-difference");
+      document.body.classList.add("is-home-intro");
+      syncHomeClusterScale();
+      items.forEach(function (el) {
+        el.classList.remove("is-intro-visible");
+        clearIntroInline(el);
+        storeOriginalText(el);
+        restoreOriginalText(el);
+        clearItemRise(el);
+      });
+      assignRestRises(rest);
+      items.forEach(function (el) {
+        if (skipLogo && el.getAttribute("data-intro") === "logo") return;
+        setIntroFrom(el, introFromFor(el));
+      });
+      void document.body.offsetWidth;
+
+      nextFrame()
+        .then(function () {
+          if (token !== introToken) return;
+
+          var staggerSec = introStaggerSec();
+
+          if (skipLogo) {
+            return revealRest(rest, token, staggerSec);
+          }
+
+          // delay 0: logo + rest start together; randomize still staggers rest internally
+          if (staggerSec <= 0) {
+            return Promise.all([
+              Promise.all(
+                logo.map(function (el) {
+                  return revealItem(el, token);
+                })
+              ),
+              revealRest(rest, token, staggerSec),
+            ]);
+          }
+
+          return Promise.all(
+            logo.map(function (el) {
+              return revealItem(el, token);
+            })
+          )
+            .then(function () {
+              if (token !== introToken) return;
+              return wait(staggerSec * 1000, token);
+            })
+            .then(function () {
+              if (token !== introToken) return;
+              return revealRest(rest, token, staggerSec);
+            });
+        })
+        .then(function () {
+          finishIntro(token);
+        });
+    }
+
+    function storedNumber(key, fallback) {
+      var value = Number(opts.readStorage(key, String(fallback)));
+      return isFinite(value) ? value : fallback;
+    }
+
+    // migrate old intro-blur checkbox → rest blur only (logo stays sharp by default)
+    if (
+      opts.readStorage("errormade-home-intro-blur", null) === "1" &&
+      opts.readStorage(INTRO_LOGO_BLUR_KEY, null) == null &&
+      opts.readStorage(INTRO_REST_BLUR_KEY, null) == null
+    ) {
+      opts.writeStorage(INTRO_LOGO_BLUR_KEY, "0");
+      opts.writeStorage(INTRO_REST_BLUR_KEY, "14");
+    }
+
+    opts.bindNumber(logoBlurRange, logoBlurNumber, {
+      key: INTRO_LOGO_BLUR_KEY,
+      min: 0,
+      max: 24,
+      fallback: storedNumber(INTRO_LOGO_BLUR_KEY, 0),
+      decimals: 1,
+      onApply: applyIntroLogoBlur,
+    });
+    opts.bindNumber(restBlurRange, restBlurNumber, {
+      key: INTRO_REST_BLUR_KEY,
+      min: 0,
+      max: 24,
+      fallback: storedNumber(INTRO_REST_BLUR_KEY, 0),
+      decimals: 1,
+      onApply: applyIntroRestBlur,
+    });
+    opts.bindNumber(speedRange, speedNumber, {
+      key: INTRO_SPEED_KEY,
+      min: 0.1,
+      max: 2,
+      fallback: storedNumber(INTRO_SPEED_KEY, 0.55),
+      decimals: 2,
+      onApply: applyIntroSpeed,
+    });
+    opts.bindNumber(delayRange, delayNumber, {
+      key: INTRO_DELAY_KEY,
+      min: 0,
+      max: 2,
+      fallback: storedNumber(INTRO_DELAY_KEY, 0.25),
+      decimals: 2,
+      onApply: applyIntroDelay,
+    });
+    opts.bindNumber(logoScaleRange, logoScaleNumber, {
+      key: INTRO_LOGO_SCALE_KEY,
+      min: 0.2,
+      max: 2,
+      fallback: storedNumber(INTRO_LOGO_SCALE_KEY, 1),
+      decimals: 2,
+      onApply: applyIntroLogoScale,
+    });
+    opts.bindNumber(logoRiseRange, logoRiseNumber, {
+      key: INTRO_LOGO_RISE_KEY,
+      min: 0,
+      max: 200,
+      fallback: storedNumber(INTRO_LOGO_RISE_KEY, 0),
+      decimals: 0,
+      onApply: applyIntroLogoRise,
+    });
+    opts.bindNumber(restScaleRange, restScaleNumber, {
+      key: INTRO_REST_SCALE_KEY,
+      min: 0.2,
+      max: 2,
+      fallback: storedNumber(INTRO_REST_SCALE_KEY, 0.85),
+      decimals: 2,
+      onApply: applyIntroRestScale,
+    });
+    opts.bindNumber(restRiseRange, restRiseNumber, {
+      key: INTRO_REST_RISE_KEY,
+      min: 0,
+      max: 200,
+      fallback: storedNumber(INTRO_REST_RISE_KEY, 40),
+      decimals: 0,
+      onApply: applyIntroRestRise,
+    });
+
+    scrambleToggle.addEventListener("change", function () {
+      applyIntroScramble(scrambleToggle.checked, true);
+    });
+    randomizeToggle.addEventListener("change", function () {
+      applyIntroRandomize(randomizeToggle.checked, true);
+    });
+    restRiseRandomToggle.addEventListener("change", function () {
+      applyIntroRestRiseRandom(restRiseRandomToggle.checked, true);
+    });
+    replayBtn.addEventListener("click", function () {
+      playIntro();
+    });
+
+    applyIntroScramble(opts.readStorage(INTRO_SCRAMBLE_KEY, "0") === "1", false);
+    applyIntroRandomize(opts.readStorage(INTRO_RANDOMIZE_KEY, "0") === "1", false);
+    applyIntroRestRiseRandom(opts.readStorage(INTRO_REST_RISE_RANDOM_KEY, "0") === "1", false);
+    introItems().forEach(function (el) {
+      unwrapIntroBlurInner(el);
+    });
+    syncHomeClusterScale();
+    playIntro();
   }
 
   function initHomeSpray() {
@@ -675,7 +1543,7 @@
     }
 
     function isMobileSpray() {
-      return window.matchMedia("(max-width: 720px), (pointer: coarse)").matches;
+      return window.matchMedia(COMPACT_MQ).matches;
     }
 
     function liveBrushSize() {
@@ -1112,18 +1980,37 @@
     var column = byId("column");
     var widthRange = byId("width");
     var widthNumber = byId("width-number");
-    var previewToggle = byId("preview-toggle");
-    var previewFill = byId("preview-fill");
-    var previewFillField = byId("preview-fill-field");
-    var previewWidthField = byId("preview-width-field");
-    var previewWidthRange = byId("preview-width");
-    var previewWidthNumber = byId("preview-width-number");
-    var previewWidthLabel = byId("preview-width-label");
+    var mainWidthRange = byId("main-width");
+    var mainWidthNumber = byId("main-width-number");
+    var mainAlignSelect = byId("main-align");
+    var mediaFitSelect = byId("media-fit");
+    var scrubOrderSelect = byId("scrub-order");
     var previewEl = byId("preview");
+    var scrubWrap = byId("scrub-wrap");
+    var scrubColumnEl = byId("scrub-column");
     var sensRange = byId("scroll-sens");
     var sensNumber = byId("scroll-sens-number");
     var smoothRange = byId("scroll-smooth");
     var smoothNumber = byId("scroll-smooth-number");
+    var introSmallBlurRange = byId("intro-small-blur");
+    var introSmallBlurNumber = byId("intro-small-blur-number");
+    var introLargeBlurRange = byId("intro-large-blur");
+    var introLargeBlurNumber = byId("intro-large-blur-number");
+    var introSpeedRange = byId("intro-speed");
+    var introSpeedNumber = byId("intro-speed-number");
+    var introDelayRange = byId("intro-delay");
+    var introDelayNumber = byId("intro-delay-number");
+    var introSmallScaleRange = byId("intro-small-scale");
+    var introSmallScaleNumber = byId("intro-small-scale-number");
+    var introSmallRiseRange = byId("intro-small-rise");
+    var introSmallRiseNumber = byId("intro-small-rise-number");
+    var introLargeScaleRange = byId("intro-large-scale");
+    var introLargeScaleNumber = byId("intro-large-scale-number");
+    var introLargeRiseRange = byId("intro-large-rise");
+    var introLargeRiseNumber = byId("intro-large-rise-number");
+    var introLargeRiseRandom = byId("intro-large-rise-random");
+    var introRandomize = byId("intro-randomize");
+    var introReplayBtn = byId("intro-replay");
     var paramsModal = byId("params-modal");
     if (
       !openBtn ||
@@ -1135,18 +2022,35 @@
       !column ||
       !widthRange ||
       !widthNumber ||
-      !previewToggle ||
-      !previewFill ||
-      !previewFillField ||
-      !previewWidthField ||
-      !previewWidthRange ||
-      !previewWidthNumber ||
-      !previewWidthLabel ||
+      !mainWidthRange ||
+      !mainWidthNumber ||
+      !mainAlignSelect ||
+      !mediaFitSelect ||
+      !scrubOrderSelect ||
       !previewEl ||
       !sensRange ||
       !sensNumber ||
       !smoothRange ||
-      !smoothNumber
+      !smoothNumber ||
+      !introSmallBlurRange ||
+      !introSmallBlurNumber ||
+      !introLargeBlurRange ||
+      !introLargeBlurNumber ||
+      !introSpeedRange ||
+      !introSpeedNumber ||
+      !introDelayRange ||
+      !introDelayNumber ||
+      !introSmallScaleRange ||
+      !introSmallScaleNumber ||
+      !introSmallRiseRange ||
+      !introSmallRiseNumber ||
+      !introLargeScaleRange ||
+      !introLargeScaleNumber ||
+      !introLargeRiseRange ||
+      !introLargeRiseNumber ||
+      !introLargeRiseRandom ||
+      !introRandomize ||
+      !introReplayBtn
     ) {
       return;
     }
@@ -1154,15 +2058,30 @@
     var DB_NAME = options.dbName;
     var STORE = options.store;
     var WIDTH_KEY = options.keyPrefix + "-column-width";
-    var WIDTH_MIN = 120;
-    var WIDTH_MAX = 1400;
+    var WIDTH_MIN = 64;
+    var WIDTH_MAX = 800;
     var WIDTH_DEFAULT = 310;
-    var PREVIEW_KEY = options.keyPrefix + "-scroll-preview";
-    var PREVIEW_WIDTH_KEY = options.keyPrefix + "-preview-width";
-    var PREVIEW_WIDTH_MIN = 200;
-    var PREVIEW_WIDTH_MAX = 1600;
-    var PREVIEW_WIDTH_DEFAULT = 1065;
-    var PREVIEW_FILL_KEY = options.keyPrefix + "-preview-fill-height";
+    var MAIN_WIDTH_KEY = options.keyPrefix + "-main-column-width";
+    var MAIN_WIDTH_LEGACY_KEY = options.keyPrefix + "-preview-width";
+    var MAIN_WIDTH_MIN = 160;
+    var MAIN_WIDTH_MAX = 1600;
+    var MAIN_WIDTH_DEFAULT = 1065;
+    var MAIN_ALIGN_KEY = options.keyPrefix + "-main-column-align";
+    var MAIN_ALIGN_DEFAULT = "left";
+    var MEDIA_FIT_KEY = options.keyPrefix + "-media-fit";
+    var MEDIA_FIT_DEFAULT = "width";
+    var SCRUB_ORDER_KEY = options.keyPrefix + "-scrub-order";
+    var SCRUB_ORDER_DEFAULT = "normal";
+    var INTRO_SMALL_BLUR_KEY = options.keyPrefix + "-intro-small-blur";
+    var INTRO_LARGE_BLUR_KEY = options.keyPrefix + "-intro-large-blur";
+    var INTRO_SPEED_KEY = options.keyPrefix + "-intro-speed";
+    var INTRO_DELAY_KEY = options.keyPrefix + "-intro-delay";
+    var INTRO_SMALL_SCALE_KEY = options.keyPrefix + "-intro-small-scale";
+    var INTRO_SMALL_RISE_KEY = options.keyPrefix + "-intro-small-rise";
+    var INTRO_LARGE_SCALE_KEY = options.keyPrefix + "-intro-large-scale";
+    var INTRO_LARGE_RISE_KEY = options.keyPrefix + "-intro-large-rise";
+    var INTRO_LARGE_RISE_RANDOM_KEY = options.keyPrefix + "-intro-large-rise-random";
+    var INTRO_RANDOMIZE_KEY = options.keyPrefix + "-intro-randomize";
     var SENS_KEY = options.keyPrefix + "-scroll-sens";
     var SMOOTH_KEY = options.keyPrefix + "-scroll-smooth";
     var SENS_MIN = 0.1;
@@ -1171,11 +2090,9 @@
     var SMOOTH_MIN = 0;
     var SMOOTH_MAX = 90;
     var SMOOTH_DEFAULT = 90;
-    var PREVIEW_GAP = 16;
     var COLUMN_FIT_MIN = 64;
-    var PREVIEW_FIT_MIN = 160;
+    var MAIN_FIT_MIN = 160;
     var PREVIEW_MAX_EDGE = 960;
-    var COMPACT_QUERY = "(max-width: 720px)";
     var items = [];
     var urls = {};
     var previewUrls = {};
@@ -1188,18 +2105,38 @@
     var previewVideo = null;
     var previewImg = null;
     var preferredColumnWidth = WIDTH_DEFAULT;
-    var preferredPreviewWidth = PREVIEW_WIDTH_DEFAULT;
+    var preferredMainWidth = MAIN_WIDTH_DEFAULT;
+    var mainAlign = MAIN_ALIGN_DEFAULT;
+    var mediaFit = MEDIA_FIT_DEFAULT;
+    var scrubOrder = SCRUB_ORDER_DEFAULT;
+    var introSmallBlur = 0;
+    var introLargeBlur = 0;
+    var introSpeed = 0.55;
+    var introDelay = 0.25;
+    var introSmallScale = 1;
+    var introSmallRise = 0;
+    var introLargeScale = 0.85;
+    var introLargeRise = 40;
+    var introLargeRiseRandomOn = false;
+    var introRandomizeOn = false;
+    var columnIntroToken = 0;
     var scrollSensitivity = SENS_DEFAULT;
     var scrollSmoothness = SMOOTH_DEFAULT / 100;
     var scrollTarget = null;
     var scrollRaf = 0;
+    var scrollEl = null;
     var closeEl = windowEl && windowEl.querySelector(".uiworks-stage > .close");
-    var compactMq = window.matchMedia(COMPACT_QUERY);
+    var compactMq = window.matchMedia(COMPACT_MQ);
     var mediaReady = null;
     var listDirty = true;
     var previewRaf = 0;
+    var columnEnterRaf = 0;
     var mediaObserver = null;
     var previewImageToken = 0;
+    var prefetchWarm = {};
+    var scrollDriver = null;
+    var scrubFromMainRaf = 0;
+    var mainFromScrubRaf = 0;
 
     function clamp(value, min, max, fallback) {
       var next = Math.round(Number(value));
@@ -1214,7 +2151,15 @@
     }
 
     function isPreviewOn() {
-      return !!(windowEl && windowEl.classList.contains("is-preview") && !isCompactView());
+      return !!(windowEl && windowEl.classList.contains("is-preview"));
+    }
+
+    function usesDualScrub() {
+      return !!scrubColumnEl;
+    }
+
+    function scrubColumn() {
+      return usesDualScrub() ? scrubColumnEl : column;
     }
 
     function isPanelOpen() {
@@ -1232,6 +2177,12 @@
       if (play && play.catch) play.catch(function () {});
     }
 
+    function markPreviewVideoReady() {
+      if (!previewVideo) return;
+      previewVideo.classList.remove("is-loading");
+      playPreviewVideo();
+    }
+
     function ensurePreviewVideo() {
       if (previewVideo && previewVideo.isConnected) return previewVideo;
       previewVideo = document.createElement("video");
@@ -1246,8 +2197,8 @@
       previewVideo.setAttribute("loop", "");
       previewVideo.setAttribute("playsinline", "");
       previewVideo.setAttribute("webkit-playsinline", "");
-      previewVideo.addEventListener("canplay", playPreviewVideo);
-      previewVideo.addEventListener("loadeddata", playPreviewVideo);
+      previewVideo.addEventListener("canplay", markPreviewVideoReady);
+      previewVideo.addEventListener("loadeddata", markPreviewVideoReady);
       return previewVideo;
     }
 
@@ -1263,6 +2214,13 @@
       return items.find(function (entry) {
         return entry.id === id;
       });
+    }
+
+    function pauseColumnVideo(itemEl) {
+      if (!itemEl) return;
+      var video = itemEl.querySelector("video");
+      itemEl.classList.remove("is-playing");
+      if (video) video.pause();
     }
 
     function unloadColumnVideo(itemEl) {
@@ -1285,31 +2243,40 @@
       if (src) img.src = src;
     }
 
-    function hydrateColumnVideo(itemEl) {
+    function ensureColumnVideo(itemEl) {
       var item = itemById(itemEl && itemEl.dataset.id);
-      if (!item || mediaKind(item) !== "video") return;
+      if (!item || mediaKind(item) !== "video") return null;
       var video = itemEl.querySelector("video");
-      if (!video) {
-        video = document.createElement("video");
-        video.muted = true;
-        video.loop = true;
-        video.playsInline = true;
-        video.preload = "auto";
-        video.setAttribute("muted", "");
-        video.setAttribute("loop", "");
-        video.setAttribute("playsinline", "");
-        video.setAttribute("webkit-playsinline", "");
-        var poster = urlForThumb(item);
-        if (poster) video.poster = poster;
-        video.src = urlFor(item);
-        video.addEventListener("loadedmetadata", requestSyncPreview);
-        itemEl.appendChild(video);
-      }
+      if (video) return video;
+      video = document.createElement("video");
+      video.muted = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.preload = "metadata";
+      video.setAttribute("muted", "");
+      video.setAttribute("loop", "");
+      video.setAttribute("playsinline", "");
+      video.setAttribute("webkit-playsinline", "");
+      var poster = urlForThumb(item);
+      if (poster) video.poster = poster;
+      video.src = urlFor(item);
+      video.addEventListener("loadedmetadata", requestSyncPreview);
+      itemEl.appendChild(video);
+      return video;
+    }
+
+    function playColumnVideo(itemEl) {
+      var video = ensureColumnVideo(itemEl);
+      if (!video) return;
       itemEl.classList.add("is-playing");
       video.play().catch(function () {});
     }
 
     function pausePanelMedia() {
+      Array.prototype.forEach.call(column.querySelectorAll(".uiworks-item"), pauseColumnVideo);
+    }
+
+    function unloadPanelMedia() {
       Array.prototype.forEach.call(column.querySelectorAll(".uiworks-item"), unloadColumnVideo);
     }
 
@@ -1322,28 +2289,28 @@
         pausePanelMedia();
         return;
       }
-      if (isPreviewOn()) pausePanelMedia();
+      if (isPreviewOn() && !usesDualScrub()) {
+        pausePanelMedia();
+        return;
+      }
       if (typeof IntersectionObserver === "undefined") {
         Array.prototype.forEach.call(column.querySelectorAll(".uiworks-item"), hydrateColumnThumb);
-        if (!isPreviewOn()) {
-          Array.prototype.forEach.call(column.querySelectorAll('.uiworks-item[data-kind="video"]'), hydrateColumnVideo);
-        }
+        Array.prototype.forEach.call(column.querySelectorAll('.uiworks-item[data-kind="video"]'), playColumnVideo);
         return;
       }
       mediaObserver = new IntersectionObserver(
         function (entries) {
-          if (!isPanelOpen()) return;
-          var previewOn = isPreviewOn();
+          if (!isPanelOpen() || (isPreviewOn() && !usesDualScrub())) return;
           entries.forEach(function (entry) {
             if (entry.isIntersecting) {
               hydrateColumnThumb(entry.target);
-              if (!previewOn) hydrateColumnVideo(entry.target);
-            } else if (!previewOn) {
-              unloadColumnVideo(entry.target);
+              playColumnVideo(entry.target);
+            } else {
+              pauseColumnVideo(entry.target);
             }
           });
         },
-        { root: column, rootMargin: "240px 0px", threshold: 0.01 }
+        { root: column, rootMargin: "120% 0px", threshold: 0.01 }
       );
       Array.prototype.forEach.call(column.querySelectorAll(".uiworks-item"), function (itemEl) {
         mediaObserver.observe(itemEl);
@@ -1351,21 +2318,166 @@
     }
 
     function sleepPanel() {
-      pausePanelMedia();
+      unloadPanelMedia();
       if (mediaObserver) {
         mediaObserver.disconnect();
         mediaObserver = null;
       }
       clearPreview();
       activePreviewId = null;
+      setScrubVisible(false);
+      finishColumnIntro(++columnIntroToken);
+      if (columnEnterRaf) {
+        cancelAnimationFrame(columnEnterRaf);
+        columnEnterRaf = 0;
+      }
+    }
+
+    function syncColumnIntroVars() {
+      if (!windowEl) return;
+      windowEl.style.setProperty("--works-intro-speed", introSpeed + "s");
+      windowEl.style.setProperty("--works-intro-small-blur", introSmallBlur + "px");
+      windowEl.style.setProperty("--works-intro-large-blur", introLargeBlur + "px");
+      windowEl.style.setProperty("--works-intro-small-scale", String(introSmallScale));
+      windowEl.style.setProperty("--works-intro-small-rise", introSmallRise + "px");
+      windowEl.style.setProperty("--works-intro-large-scale", String(introLargeScale));
+      var rise = introLargeRise;
+      if (introLargeRiseRandomOn) rise = Math.round(Math.random() * introLargeRise);
+      windowEl.style.setProperty("--works-intro-large-rise", rise + "px");
+    }
+
+    function finishColumnIntro(token) {
+      if (token !== columnIntroToken) return;
+      if (!windowEl) return;
+      windowEl.classList.remove("is-column-intro");
+      if (scrubWrap) {
+        scrubWrap.classList.remove("is-intro-visible");
+        clearIntroInline(scrubWrap);
+      }
+      var mainWrap = column && column.closest(".uiworks-column-wrap");
+      if (mainWrap) {
+        mainWrap.classList.remove("is-intro-visible");
+        clearIntroInline(mainWrap);
+      }
+      void windowEl.offsetWidth;
+    }
+
+    function columnIntroFrom(kind) {
+      if (kind === "small") {
+        return {
+          blur: introSmallBlur,
+          rise: introSmallRise,
+          scale: introSmallScale,
+          origin: "left center",
+        };
+      }
+      var rise = introLargeRise;
+      if (introLargeRiseRandomOn) rise = Math.round(Math.random() * introLargeRise);
+      return {
+        blur: introLargeBlur,
+        rise: rise,
+        scale: introLargeScale,
+        origin: "left center",
+      };
+    }
+
+    function revealColumnIntroEl(el, token, kind) {
+      if (!el || token !== columnIntroToken) return Promise.resolve();
+      el.classList.remove("is-intro-visible");
+      return animateIntroEl(el, columnIntroFrom(kind), Math.max(180, introSpeed * 1000), function () {
+        return token !== columnIntroToken;
+      }).then(function () {
+        if (token !== columnIntroToken) return;
+        el.classList.add("is-intro-visible");
+        clearIntroInline(el);
+      });
+    }
+
+    function nextIntroFrame() {
+      return new Promise(function (resolve) {
+        requestAnimationFrame(function () {
+          requestAnimationFrame(resolve);
+        });
+      });
+    }
+
+    function playColumnIntro() {
+      if (!windowEl || !isPanelOpen()) return;
+      var mainWrap = column && column.closest(".uiworks-column-wrap");
+      var smallEl = scrubWrap && !scrubWrap.hidden ? scrubWrap : null;
+      var largeEl = mainWrap || null;
+      if (!smallEl && !largeEl) return;
+
+      var token = ++columnIntroToken;
+      syncColumnIntroVars();
+      windowEl.classList.add("is-column-intro");
+      if (smallEl) {
+        smallEl.classList.remove("is-intro-visible");
+        setIntroFrom(smallEl, columnIntroFrom("small"));
+      }
+      if (largeEl) {
+        largeEl.classList.remove("is-intro-visible");
+        setIntroFrom(largeEl, columnIntroFrom("large"));
+      }
+      void windowEl.offsetWidth;
+
+      function wait(ms) {
+        return new Promise(function (resolve) {
+          window.setTimeout(function () {
+            if (token !== columnIntroToken) return;
+            resolve();
+          }, ms);
+        });
+      }
+
+      nextIntroFrame().then(function () {
+        if (token !== columnIntroToken) return;
+
+        var first = smallEl || largeEl;
+        var firstKind = smallEl ? "small" : "large";
+        var second = smallEl && largeEl ? largeEl : null;
+        var secondKind = "large";
+        if (introRandomizeOn && smallEl && largeEl && Math.random() < 0.5) {
+          first = largeEl;
+          firstKind = "large";
+          second = smallEl;
+          secondKind = "small";
+        }
+
+        if (introDelay <= 0) {
+          var batch = [];
+          if (first) batch.push(revealColumnIntroEl(first, token, firstKind));
+          if (second) batch.push(revealColumnIntroEl(second, token, secondKind));
+          Promise.all(batch).then(function () {
+            finishColumnIntro(token);
+          });
+          return;
+        }
+
+        revealColumnIntroEl(first, token, firstKind)
+          .then(function () {
+            if (token !== columnIntroToken || !second) return;
+            return wait(introDelay * 1000).then(function () {
+              return revealColumnIntroEl(second, token, secondKind);
+            });
+          })
+          .then(function () {
+            finishColumnIntro(token);
+          });
+      });
     }
 
     function wakePanel() {
       ensureMedia().then(function () {
         if (!isPanelOpen()) return;
+        layoutPreview();
+        setScrubVisible(usesDualScrub());
         observeColumnMedia();
         syncPreview();
         playPreviewVideo();
+        requestAnimationFrame(function () {
+          playColumnIntro();
+        });
       });
     }
 
@@ -1384,33 +2496,40 @@
 
     function layoutPreview() {
       if (!windowEl) return;
-      if (isCompactView()) {
-        windowEl.style.setProperty("--uiworks-column-width", "100%");
-        windowEl.style.setProperty("--uiworks-preview-fit-width", preferredPreviewWidth + "px");
-        return;
-      }
-      windowEl.style.setProperty("--uiworks-column-width", preferredColumnWidth + "px");
-      if (!windowEl.classList.contains("is-preview")) {
-        windowEl.style.setProperty("--uiworks-preview-fit-width", preferredPreviewWidth + "px");
-        return;
-      }
-
-      var closeW = closeEl ? Math.ceil(closeEl.getBoundingClientRect().width) : 50;
-      var reserved = closeW + PREVIEW_GAP * 2;
+      var scrubW = isCompactView() ? 64 : preferredColumnWidth;
+      var mainW = preferredMainWidth;
       var viewport = window.innerWidth;
-      var displayColumn = preferredColumnWidth;
-      var spaceForPreview = viewport - displayColumn - reserved;
-      if (spaceForPreview < PREVIEW_FIT_MIN) {
-        displayColumn = Math.max(COLUMN_FIT_MIN, viewport - PREVIEW_FIT_MIN - reserved);
-        spaceForPreview = viewport - displayColumn - reserved;
+      if (scrubW + mainW > viewport) {
+        var overflow = scrubW + mainW - viewport;
+        var mainCut = Math.min(overflow, Math.max(0, mainW - MAIN_FIT_MIN));
+        mainW -= mainCut;
+        overflow -= mainCut;
+        if (overflow > 0 && !isCompactView()) {
+          scrubW = Math.max(COLUMN_FIT_MIN, scrubW - overflow);
+        } else if (overflow > 0) {
+          mainW = Math.max(MAIN_FIT_MIN, viewport - scrubW);
+        }
       }
-      var displayPreview = Math.min(
-        preferredPreviewWidth,
-        Math.max(PREVIEW_FIT_MIN, spaceForPreview)
-      );
+      var rest = Math.max(0, viewport - scrubW);
+      var mainLeft = scrubW;
+      if (mainAlign === "right") {
+        mainLeft = Math.max(scrubW, viewport - mainW);
+      } else if (mainAlign === "center") {
+        mainLeft = scrubW + Math.max(0, Math.round((rest - mainW) / 2));
+      }
+      windowEl.style.setProperty("--uiworks-scrub-width", Math.round(scrubW) + "px");
+      windowEl.style.setProperty("--uiworks-main-width", Math.round(mainW) + "px");
+      windowEl.style.setProperty("--uiworks-main-left", Math.round(mainLeft) + "px");
+      windowEl.style.setProperty("--uiworks-column-width", "100%");
+      windowEl.classList.toggle("is-scrub-reverse", scrubOrder === "reverse");
+      setScrubVisible(usesDualScrub() && isPanelOpen());
+    }
 
-      windowEl.style.setProperty("--uiworks-column-width", Math.round(displayColumn) + "px");
-      windowEl.style.setProperty("--uiworks-preview-fit-width", Math.round(displayPreview) + "px");
+    function persistLayoutValue(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch (error) {}
+      publishWorksLayout(prefix);
     }
 
     function applyColumnWidth(value, persist) {
@@ -1418,11 +2537,7 @@
       preferredColumnWidth = next;
       widthRange.value = String(next);
       widthNumber.value = String(next);
-      if (persist) {
-        try {
-          localStorage.setItem(WIDTH_KEY, String(next));
-        } catch (error) {}
-      }
+      if (persist) persistLayoutValue(WIDTH_KEY, String(next));
       layoutPreview();
       syncPreview();
       return next;
@@ -1433,11 +2548,7 @@
       scrollSensitivity = next;
       sensRange.value = String(next);
       sensNumber.value = String(next);
-      if (persist) {
-        try {
-          localStorage.setItem(SENS_KEY, String(next));
-        } catch (error) {}
-      }
+      if (persist) persistLayoutValue(SENS_KEY, String(next));
       return next;
     }
 
@@ -1446,11 +2557,7 @@
       scrollSmoothness = next / 100;
       smoothRange.value = String(next);
       smoothNumber.value = String(next);
-      if (persist) {
-        try {
-          localStorage.setItem(SMOOTH_KEY, String(next));
-        } catch (error) {}
-      }
+      if (persist) persistLayoutValue(SMOOTH_KEY, String(next));
       return next;
     }
 
@@ -1461,55 +2568,253 @@
       return delta;
     }
 
-    function scrollMax() {
-      return Math.max(0, column.scrollHeight - column.clientHeight);
+    function scrollMax(el) {
+      el = el || scrollSource();
+      return Math.max(0, el.scrollHeight - el.clientHeight);
+    }
+
+    function scrollSource() {
+      return usesDualScrub() && scrubColumnEl ? scrubColumnEl : column;
     }
 
     function tickScroll() {
       scrollRaf = 0;
       if (scrollTarget == null) return;
-      var max = scrollMax();
+      var el = scrollEl || scrollSource();
+      var max = scrollMax(el);
       if (scrollTarget < 0) scrollTarget = 0;
       if (scrollTarget > max) scrollTarget = max;
-      var current = column.scrollTop;
+      var current = el.scrollTop;
       var ease = 1 - scrollSmoothness;
+      function afterScroll() {
+        if (usesDualScrub()) {
+          if (el === scrubColumnEl) syncMainFromScrub();
+          else syncScrubFromMain();
+        } else {
+          requestSyncPreview();
+        }
+      }
       if (ease >= 0.999) {
-        column.scrollTop = scrollTarget;
+        el.scrollTop = scrollTarget;
         scrollTarget = null;
+        scrollEl = null;
+        afterScroll();
         return;
       }
       var next = current + (scrollTarget - current) * Math.max(ease, 0.08);
-      column.scrollTop = next;
+      el.scrollTop = next;
+      afterScroll();
       if (Math.abs(scrollTarget - next) < 0.5) {
-        column.scrollTop = scrollTarget;
+        el.scrollTop = scrollTarget;
         scrollTarget = null;
+        scrollEl = null;
+        afterScroll();
         return;
       }
       scrollRaf = requestAnimationFrame(tickScroll);
     }
 
-    function applyScrollDelta(delta) {
-      if (scrollTarget == null) scrollTarget = column.scrollTop;
+    function applyScrollDelta(delta, el) {
+      el = el || scrollSource();
+      if (scrubOrder === "reverse" && el === scrubColumnEl) delta = -delta;
+      if (scrollEl && scrollEl !== el) {
+        seizeScrollDriver(el === scrubColumnEl ? "scrub" : "main");
+      }
+      scrollEl = el;
+      if (scrollTarget == null) scrollTarget = el.scrollTop;
       scrollTarget += delta * scrollSensitivity;
-      var max = scrollMax();
+      var max = scrollMax(el);
       if (scrollTarget < 0) scrollTarget = 0;
       if (scrollTarget > max) scrollTarget = max;
       if (!scrollRaf) scrollRaf = requestAnimationFrame(tickScroll);
     }
 
-    function applyPreviewWidth(value, persist) {
-      var next = clamp(value, PREVIEW_WIDTH_MIN, PREVIEW_WIDTH_MAX, PREVIEW_WIDTH_DEFAULT);
-      preferredPreviewWidth = next;
-      if (windowEl) windowEl.style.setProperty("--uiworks-preview-width", next + "px");
-      previewWidthRange.value = String(next);
-      previewWidthNumber.value = String(next);
-      if (persist) {
-        try {
-          localStorage.setItem(PREVIEW_WIDTH_KEY, String(next));
-        } catch (error) {}
+    function seizeScrollDriver(driver) {
+      scrollDriver = driver;
+      if (scrollRaf) {
+        cancelAnimationFrame(scrollRaf);
+        scrollRaf = 0;
       }
+      scrollTarget = null;
+      scrollEl = null;
+      if (scrubFromMainRaf) {
+        cancelAnimationFrame(scrubFromMainRaf);
+        scrubFromMainRaf = 0;
+      }
+      if (mainFromScrubRaf) {
+        cancelAnimationFrame(mainFromScrubRaf);
+        mainFromScrubRaf = 0;
+      }
+    }
+
+    function applyMainWidth(value, persist) {
+      var next = clamp(value, MAIN_WIDTH_MIN, MAIN_WIDTH_MAX, MAIN_WIDTH_DEFAULT);
+      preferredMainWidth = next;
+      mainWidthRange.value = String(next);
+      mainWidthNumber.value = String(next);
+      if (persist) persistLayoutValue(MAIN_WIDTH_KEY, String(next));
       layoutPreview();
       return next;
+    }
+
+    function applyMainAlign(value, persist) {
+      var next = value === "left" || value === "right" || value === "center" ? value : MAIN_ALIGN_DEFAULT;
+      mainAlign = next;
+      mainAlignSelect.value = next;
+      if (windowEl) {
+        windowEl.classList.toggle("is-main-align-left", next === "left");
+        windowEl.classList.toggle("is-main-align-center", next === "center");
+        windowEl.classList.toggle("is-main-align-right", next === "right");
+      }
+      if (persist) persistLayoutValue(MAIN_ALIGN_KEY, next);
+      layoutPreview();
+      return next;
+    }
+
+    function applyMediaFit(value, persist) {
+      var next = value === "height" ? "height" : "width";
+      mediaFit = next;
+      mediaFitSelect.value = next;
+      if (windowEl) {
+        windowEl.classList.toggle("is-media-fit-width", next === "width");
+        windowEl.classList.toggle("is-media-fit-height", next === "height");
+      }
+      if (persist) persistLayoutValue(MEDIA_FIT_KEY, next);
+      layoutPreview();
+      requestSyncPreview();
+      return next;
+    }
+
+    function applyScrubOrder(value, persist) {
+      var next = value === "reverse" ? "reverse" : "normal";
+      var changed = next !== scrubOrder;
+      scrubOrder = next;
+      scrubOrderSelect.value = next;
+      if (windowEl) {
+        windowEl.classList.toggle("is-scrub-reverse", next === "reverse");
+      }
+      if (persist) persistLayoutValue(SCRUB_ORDER_KEY, next);
+      if (changed && scrubColumnEl) {
+        renderScrubColumn();
+        requestAnimationFrame(function () {
+          resetScrubScrollToStart();
+          syncScrubFromMain();
+          markActiveFromScrub();
+        });
+      }
+      return next;
+    }
+
+    function applyIntroSmallBlur(value, persist) {
+      var next = clamp(Number(value) * 10, 0, 240, 0) / 10;
+      introSmallBlur = next;
+      introSmallBlurRange.value = String(next);
+      introSmallBlurNumber.value = String(next);
+      if (persist) persistLayoutValue(INTRO_SMALL_BLUR_KEY, String(next));
+      syncColumnIntroVars();
+      return next;
+    }
+
+    function applyIntroLargeBlur(value, persist) {
+      var next = clamp(Number(value) * 10, 0, 240, 0) / 10;
+      introLargeBlur = next;
+      introLargeBlurRange.value = String(next);
+      introLargeBlurNumber.value = String(next);
+      if (persist) persistLayoutValue(INTRO_LARGE_BLUR_KEY, String(next));
+      syncColumnIntroVars();
+      return next;
+    }
+
+    function applyIntroSpeed(value, persist) {
+      var next = clamp(Number(value) * 100, 10, 200, 55) / 100;
+      introSpeed = next;
+      introSpeedRange.value = String(next);
+      introSpeedNumber.value = String(next);
+      if (persist) persistLayoutValue(INTRO_SPEED_KEY, String(next));
+      syncColumnIntroVars();
+      return next;
+    }
+
+    function applyIntroDelay(value, persist) {
+      var next = clamp(Number(value) * 100, 0, 200, 25) / 100;
+      introDelay = next;
+      introDelayRange.value = String(next);
+      introDelayNumber.value = String(next);
+      if (persist) persistLayoutValue(INTRO_DELAY_KEY, String(next));
+      return next;
+    }
+
+    function applyIntroSmallScale(value, persist) {
+      var next = clamp(Number(value) * 100, 20, 200, 100) / 100;
+      introSmallScale = next;
+      introSmallScaleRange.value = String(next);
+      introSmallScaleNumber.value = String(next);
+      if (persist) persistLayoutValue(INTRO_SMALL_SCALE_KEY, String(next));
+      syncColumnIntroVars();
+      return next;
+    }
+
+    function applyIntroSmallRise(value, persist) {
+      var next = clamp(value, 0, 200, 0);
+      introSmallRise = next;
+      introSmallRiseRange.value = String(next);
+      introSmallRiseNumber.value = String(next);
+      if (persist) persistLayoutValue(INTRO_SMALL_RISE_KEY, String(next));
+      syncColumnIntroVars();
+      return next;
+    }
+
+    function applyIntroLargeScale(value, persist) {
+      var next = clamp(Number(value) * 100, 20, 200, 85) / 100;
+      introLargeScale = next;
+      introLargeScaleRange.value = String(next);
+      introLargeScaleNumber.value = String(next);
+      if (persist) persistLayoutValue(INTRO_LARGE_SCALE_KEY, String(next));
+      syncColumnIntroVars();
+      return next;
+    }
+
+    function applyIntroLargeRise(value, persist) {
+      var next = clamp(value, 0, 200, 40);
+      introLargeRise = next;
+      introLargeRiseRange.value = String(next);
+      introLargeRiseNumber.value = String(next);
+      if (persist) persistLayoutValue(INTRO_LARGE_RISE_KEY, String(next));
+      syncColumnIntroVars();
+      return next;
+    }
+
+    function applyIntroLargeRiseRandom(on, persist) {
+      introLargeRiseRandomOn = !!on;
+      introLargeRiseRandom.checked = introLargeRiseRandomOn;
+      if (persist) persistLayoutValue(INTRO_LARGE_RISE_RANDOM_KEY, introLargeRiseRandomOn ? "1" : "0");
+      return introLargeRiseRandomOn;
+    }
+
+    function applyIntroRandomize(on, persist) {
+      introRandomizeOn = !!on;
+      introRandomize.checked = introRandomizeOn;
+      if (persist) persistLayoutValue(INTRO_RANDOMIZE_KEY, introRandomizeOn ? "1" : "0");
+      return introRandomizeOn;
+    }
+
+    function resetScrubScrollToStart() {
+      if (!scrubColumnEl) return;
+      function apply() {
+        if (!scrubColumnEl) return;
+        scrubColumnEl.scrollTop = scrubOrder === "reverse" ? scrollMax(scrubColumnEl) : 0;
+      }
+      apply();
+      // Mobile: thumbs load async and grow scrollHeight — pin start again after layout.
+      requestAnimationFrame(apply);
+    }
+
+    function mapScrubProgressToMain(progress) {
+      return scrubOrder === "reverse" ? 1 - progress : progress;
+    }
+
+    function mapMainProgressToScrub(progress) {
+      return scrubOrder === "reverse" ? 1 - progress : progress;
     }
 
     function readStorage(key, fallback) {
@@ -1520,53 +2825,108 @@
       }
     }
 
-    function updatePreviewFields() {
-      var previewOn = isPreviewOn();
-      var fillOn = windowEl && windowEl.classList.contains("is-preview-fill");
-      previewFillField.hidden = !previewOn;
-      previewWidthField.hidden = !previewOn;
-      previewWidthLabel.textContent = fillOn ? "max width" : "preview width";
-    }
-
-    function applyFillHeight(on, persist) {
-      if (windowEl) windowEl.classList.toggle("is-preview-fill", on);
-      previewFill.checked = on;
-      updatePreviewFields();
-      layoutPreview();
-      if (persist) {
-        try {
-          localStorage.setItem(PREVIEW_FILL_KEY, on ? "1" : "0");
-        } catch (error) {}
+    function setScrubVisible(on) {
+      if (!scrubWrap) return;
+      scrubWrap.hidden = !on;
+      if (windowEl) {
+        windowEl.classList.toggle("is-dual-scrub", on);
+        windowEl.classList.toggle("is-scrub-reverse", on && scrubOrder === "reverse");
       }
-    }
-
-    function applyPreviewMode(on, persist) {
-      if (windowEl) windowEl.classList.toggle("is-preview", on);
-      previewToggle.checked = on;
-      updatePreviewFields();
-      if (!on) {
-        clearPreview();
-        activePreviewId = null;
-        Array.prototype.forEach.call(column.querySelectorAll(".uiworks-item"), function (node) {
-          node.classList.remove("is-active");
+      if (on) {
+        if (windowEl) windowEl.classList.add("is-preview");
+        renderScrubColumn();
+        requestAnimationFrame(function () {
+          if (!scrubColumnEl) return;
+          column.scrollTop = 0;
+          resetScrubScrollToStart();
+          syncScrubFromMain();
+          markActiveFromScrub();
         });
-      } else {
-        requestAnimationFrame(syncPreview);
-      }
-      if (isPanelOpen()) observeColumnMedia();
-      layoutPreview();
-      if (persist) {
-        try {
-          localStorage.setItem(PREVIEW_KEY, on ? "1" : "0");
-        } catch (error) {}
       }
     }
 
-    function itemAtScrub() {
-      var nodes = column.querySelectorAll(".uiworks-item");
+    function getScrollProgress(el) {
+      if (!el) return 0;
+      var max = Math.max(0, el.scrollHeight - el.clientHeight);
+      if (max <= 0) return 0;
+      var progress = el.scrollTop / max;
+      if (progress < 0) return 0;
+      if (progress > 1) return 1;
+      return progress;
+    }
+
+    function setScrollProgress(el, progress) {
+      if (!el) return;
+      var max = Math.max(0, el.scrollHeight - el.clientHeight);
+      if (progress < 0) progress = 0;
+      if (progress > 1) progress = 1;
+      el.scrollTop = progress * max;
+    }
+
+    function markActive(id) {
+      Array.prototype.forEach.call(column.querySelectorAll(".uiworks-item"), function (node) {
+        node.classList.toggle("is-active", !!(id && node.dataset.id === id));
+      });
+      if (scrubColumnEl) {
+        Array.prototype.forEach.call(scrubColumnEl.querySelectorAll(".uiworks-item"), function (node) {
+          node.classList.toggle("is-active", !!(id && node.dataset.id === id));
+        });
+      }
+    }
+
+    function markActiveFromScrub() {
+      if (!scrubColumnEl) return;
+      var active = itemAtScrubIn(scrubColumnEl);
+      markActive(active && active.dataset.id);
+    }
+
+    function syncMainFromScrub() {
+      if (!usesDualScrub() || !scrubColumnEl) return;
+      if (scrollDriver === "main") return;
+      setScrollProgress(column, mapScrubProgressToMain(getScrollProgress(scrubColumnEl)));
+      markActiveFromScrub();
+    }
+
+    function syncScrubFromMain() {
+      if (!usesDualScrub() || !scrubColumnEl) return;
+      if (scrollDriver === "scrub") return;
+      setScrollProgress(scrubColumnEl, mapMainProgressToScrub(getScrollProgress(column)));
+      markActiveFromScrub();
+    }
+
+    function requestSyncScrubFromMain() {
+      if (!usesDualScrub()) return;
+      if (scrollDriver === "scrub") return;
+      if (scrubFromMainRaf) return;
+      scrubFromMainRaf = requestAnimationFrame(function () {
+        scrubFromMainRaf = 0;
+        syncScrubFromMain();
+      });
+    }
+
+    function requestSyncMainFromScrub() {
+      if (!usesDualScrub()) return;
+      if (scrollDriver === "main") return;
+      if (mainFromScrubRaf) return;
+      mainFromScrubRaf = requestAnimationFrame(function () {
+        mainFromScrubRaf = 0;
+        syncMainFromScrub();
+      });
+    }
+
+    function itemAtScrubIn(source) {
+      var nodes = source.querySelectorAll(".uiworks-item");
       if (!nodes.length) return null;
-      var bounds = column.getBoundingClientRect();
-      var lineY = bounds.top + bounds.height / 2;
+      var lineY;
+      var scrub = source.querySelector(":scope > .uiworks-scrub") || source.querySelector(".uiworks-scrub");
+      if (scrub) {
+        var scrubRect = scrub.getBoundingClientRect();
+        if (scrubRect.height > 0) lineY = scrubRect.top + scrubRect.height / 2;
+      }
+      if (lineY == null) {
+        var bounds = source.getBoundingClientRect();
+        lineY = bounds.top + bounds.height / 2;
+      }
       var closest = null;
       var closestDist = Infinity;
       for (var i = 0; i < nodes.length; i++) {
@@ -1581,6 +2941,40 @@
       return closest;
     }
 
+    function itemAtScrub() {
+      return itemAtScrubIn(scrubColumn());
+    }
+
+    function warmUrl(url) {
+      if (!url || prefetchWarm[url]) return;
+      prefetchWarm[url] = true;
+      var img = new Image();
+      img.decoding = "async";
+      img.src = url;
+    }
+
+    function prefetchAround(id) {
+      var index = items.findIndex(function (entry) {
+        return entry.id === id;
+      });
+      if (index < 0) return;
+      for (var offset = -4; offset <= 4; offset++) {
+        var item = items[index + offset];
+        if (!item) continue;
+        var thumb = urlForThumb(item);
+        if (thumb) warmUrl(thumb);
+        if (mediaKind(item) === "image") warmUrl(urlFor(item));
+      }
+    }
+
+    function setPreviewBackdrop(thumb) {
+      if (thumb) {
+        previewEl.style.backgroundImage = 'url("' + thumb.replace(/"/g, '\\"') + '")';
+      } else {
+        previewEl.style.backgroundImage = "";
+      }
+    }
+
     function showPreview(id) {
       var item = items.find(function (entry) {
         return entry.id === id;
@@ -1593,12 +2987,14 @@
       previewEl.classList.add("is-visible");
       var current = previewEl.getAttribute("data-preview-id");
       var kind = mediaKind(item);
+      var thumb = urlForThumb(item);
+      setPreviewBackdrop(thumb);
+      prefetchAround(id);
       if (current === id) {
         if (kind === "video") playPreviewVideo();
         return;
       }
       previewEl.setAttribute("data-preview-id", id);
-      var thumb = urlForThumb(item);
       if (kind === "video") {
         previewImageToken += 1;
         if (previewImg) {
@@ -1611,7 +3007,11 @@
         var src = urlForPreview(item);
         if (thumb) video.poster = thumb;
         if (video.getAttribute("src") !== src && video.src !== src) {
+          video.classList.add("is-loading");
+          video.pause();
           video.src = src;
+        } else {
+          video.classList.remove("is-loading");
         }
         playPreviewVideo();
         return;
@@ -1619,7 +3019,12 @@
       previewEl.classList.remove("has-video");
       if (previewVideo) {
         previewVideo.pause();
+        // Keep element/src warm only while browsing videos; drop when showing stills
+        // so a single decoder stays free for the next video scrub.
         previewVideo.removeAttribute("src");
+        try {
+          previewVideo.load();
+        } catch (error) {}
         previewVideo.remove();
         previewVideo = null;
       }
@@ -1634,6 +3039,7 @@
         previewImageToken += 1;
         var token = previewImageToken;
         var loader = new Image();
+        loader.decoding = "async";
         loader.onload = function () {
           if (token !== previewImageToken) return;
           if (previewEl.getAttribute("data-preview-id") !== id) return;
@@ -1648,6 +3054,7 @@
     function clearPreview() {
       previewImageToken += 1;
       releasePreviewMedia();
+      setPreviewBackdrop("");
       previewEl.removeAttribute("data-preview-id");
       previewEl.classList.remove("has-video");
       previewEl.hidden = true;
@@ -1733,43 +3140,84 @@
     }
 
     function syncPreview() {
-      if (!isPanelOpen() || !isPreviewOn() || !items.length) {
+      if (!isPanelOpen() || !items.length) {
         clearPreview();
         activePreviewId = null;
         return;
       }
-      var active = itemAtScrub();
-      Array.prototype.forEach.call(column.querySelectorAll(".uiworks-item"), function (node) {
-        node.classList.toggle("is-active", node === active);
-      });
-      var id = active && active.dataset.id;
-      if (!id || id === activePreviewId) return;
-      activePreviewId = id;
-      showPreview(id);
+      clearPreview();
+      if (usesDualScrub()) requestSyncScrubFromMain();
     }
 
     function seedMissingKeys() {
-      if (!options.seedFrom) return;
-      [WIDTH_KEY, PREVIEW_WIDTH_KEY, SENS_KEY, SMOOTH_KEY, PREVIEW_FILL_KEY, PREVIEW_KEY].forEach(
-        function (key) {
-          try {
-            if (localStorage.getItem(key) != null) return;
-            var seeded = localStorage.getItem(key.replace(options.keyPrefix, options.seedFrom));
-            if (seeded != null) localStorage.setItem(key, seeded);
-          } catch (error) {}
-        }
-      );
+      // Shared layout keys live under graphicworks prefix (canonical).
+      // If a shared key is empty, fall back once from legacy uiworks keys.
+      var suffixes = [
+        "column-width",
+        "main-column-width",
+        "main-column-align",
+        "media-fit",
+        "scrub-order",
+        "intro-small-blur",
+        "intro-large-blur",
+        "intro-speed",
+        "intro-delay",
+        "intro-small-scale",
+        "intro-small-rise",
+        "intro-large-scale",
+        "intro-large-rise",
+        "intro-large-rise-random",
+        "intro-randomize",
+        "scroll-sens",
+        "scroll-smooth",
+        "preview-width",
+      ];
+      suffixes.forEach(function (suffix) {
+        try {
+          var sharedKey = WORKS_LAYOUT_PREFIX + "-" + suffix;
+          if (localStorage.getItem(sharedKey) != null) return;
+          var legacy = localStorage.getItem("errormade-uiworks-" + suffix);
+          if (legacy != null) localStorage.setItem(sharedKey, legacy);
+        } catch (error) {}
+      });
+    }
+
+    function loadStoredWidths() {
+      var scrub = readStorage(WIDTH_KEY, String(WIDTH_DEFAULT));
+      var main = readStorage(MAIN_WIDTH_KEY, null);
+      if (main == null) main = readStorage(MAIN_WIDTH_LEGACY_KEY, String(MAIN_WIDTH_DEFAULT));
+      applyColumnWidth(scrub, false);
+      applyMainWidth(main, false);
     }
 
     function loadLayout() {
       seedMissingKeys();
-      applyColumnWidth(WIDTH_DEFAULT, false);
-      applyPreviewWidth(PREVIEW_WIDTH_DEFAULT, false);
-      applyScrollSens(SENS_DEFAULT, false);
-      applyScrollSmooth(SMOOTH_DEFAULT, false);
-      applyFillHeight(true, false);
-      applyPreviewMode(true, false);
+      loadStoredWidths();
+      applyMainAlign(readStorage(MAIN_ALIGN_KEY, MAIN_ALIGN_DEFAULT), false);
+      applyMediaFit(readStorage(MEDIA_FIT_KEY, MEDIA_FIT_DEFAULT), false);
+      applyScrubOrder(readStorage(SCRUB_ORDER_KEY, SCRUB_ORDER_DEFAULT), false);
+      applyIntroSmallBlur(readStorage(INTRO_SMALL_BLUR_KEY, "0"), false);
+      applyIntroLargeBlur(readStorage(INTRO_LARGE_BLUR_KEY, "0"), false);
+      applyIntroSpeed(readStorage(INTRO_SPEED_KEY, "0.55"), false);
+      applyIntroDelay(readStorage(INTRO_DELAY_KEY, "0.25"), false);
+      applyIntroSmallScale(readStorage(INTRO_SMALL_SCALE_KEY, "1"), false);
+      applyIntroSmallRise(readStorage(INTRO_SMALL_RISE_KEY, "0"), false);
+      applyIntroLargeScale(readStorage(INTRO_LARGE_SCALE_KEY, "0.85"), false);
+      applyIntroLargeRise(readStorage(INTRO_LARGE_RISE_KEY, "40"), false);
+      applyIntroLargeRiseRandom(readStorage(INTRO_LARGE_RISE_RANDOM_KEY, "0") === "1", false);
+      applyIntroRandomize(readStorage(INTRO_RANDOMIZE_KEY, "0") === "1", false);
+      applyScrollSens(readStorage(SENS_KEY, String(SENS_DEFAULT)), false);
+      applyScrollSmooth(readStorage(SMOOTH_KEY, String(SMOOTH_DEFAULT)), false);
+      if (windowEl) windowEl.classList.add("is-preview");
+      layoutPreview();
     }
+
+    worksLayoutListeners.push({
+      id: prefix,
+      reload: function () {
+        loadLayout();
+      },
+    });
 
     function getDb() {
       if (dbPromise) return dbPromise;
@@ -1953,6 +3401,45 @@
       column.insertBefore(scrub, column.firstChild);
     }
 
+    function renderScrubColumn() {
+      if (!scrubColumnEl) return;
+      var scrub = scrubColumnEl.querySelector(".uiworks-scrub");
+      scrubColumnEl.innerHTML = "";
+      if (!scrub) {
+        scrub = document.createElement("div");
+        scrub.className = "uiworks-scrub";
+        scrub.setAttribute("aria-hidden", "true");
+      }
+      scrubColumnEl.appendChild(scrub);
+      if (!items.length) {
+        scrubColumnEl.classList.remove("has-media");
+        return;
+      }
+      scrubColumnEl.classList.add("has-media");
+      var scrubItems = scrubOrder === "reverse" ? items.slice().reverse() : items;
+      scrubItems.forEach(function (item, index) {
+        var kind = mediaKind(item);
+        var thumb = urlForThumb(item) || (kind === "image" ? urlFor(item) : "");
+        var node = document.createElement("div");
+        node.className = "uiworks-item";
+        node.dataset.id = item.id;
+        node.dataset.kind = kind;
+        if (thumb) {
+          var img = document.createElement("img");
+          img.alt = "";
+          img.decoding = "async";
+          img.loading = index < 12 ? "eager" : "lazy";
+          img.width = item.thumbW || preferredColumnWidth;
+          img.height =
+            item.thumbH ||
+            Math.round((item.thumbW || preferredColumnWidth) * 1.25);
+          img.src = thumb;
+          node.appendChild(img);
+        }
+        scrubColumnEl.appendChild(node);
+      });
+    }
+
     function renderColumn() {
       var placeholders =
         '<div class="uiworks-block uiworks-block-1"></div>' +
@@ -1961,6 +3448,7 @@
         column.classList.remove("has-media");
         column.innerHTML = placeholders;
         attachScrub();
+        renderScrubColumn();
         return;
       }
       column.classList.add("has-media");
@@ -1968,7 +3456,6 @@
         .map(function (item, index) {
           var kind = mediaKind(item);
           var thumb = urlForThumb(item) || (kind === "image" ? urlFor(item) : "");
-          var eager = index < 3;
           var w = item.thumbW || 1400;
           var h = item.thumbH || 1050;
           return (
@@ -1982,19 +3469,23 @@
                 w +
                 '" height="' +
                 h +
-                '" data-src="' +
+                '" src="' +
                 thumb +
                 '"' +
-                (eager
-                  ? ' src="' + thumb + '" fetchpriority="high" loading="eager"'
-                  : ' loading="lazy"') +
-                ">"
+                (index < 8 ? ' fetchpriority="high"' : "") +
+                ' loading="eager">'
               : "") +
             "</div>"
           );
         })
         .join("");
       attachScrub();
+      renderScrubColumn();
+      items.forEach(function (item) {
+        var thumb = urlForThumb(item);
+        if (thumb) warmUrl(thumb);
+      });
+      if (isPreviewOn() && items[0]) prefetchAround(items[0].id);
     }
 
     function bindAction(button, handler) {
@@ -2161,20 +3652,32 @@
       }
       paramsModal.hidden = false;
       paramsModal.classList.add("is-open");
+      document.body.classList.add("is-params-open");
     }
 
     function closeThisParams() {
       paramsModal.classList.remove("is-open");
       paramsModal.hidden = true;
+      if (!document.querySelector(".params-modal.is-open")) {
+        document.body.classList.remove("is-params-open");
+      }
     }
 
     function isThisParamsOpen() {
       return paramsModal.classList.contains("is-open");
     }
 
-    closeBtn.addEventListener("click", function () {
+    openBtn.addEventListener("click", openParams);
+
+    closeBtn.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
       closeThisParams();
       openBtn.focus();
+    });
+
+    paramsModal.addEventListener("click", function (event) {
+      if (event.target === paramsModal) closeThisParams();
     });
 
     uploadBtn.addEventListener("click", function () {
@@ -2284,23 +3787,57 @@
     widthNumber.addEventListener("change", function () {
       applyColumnWidth(widthNumber.value, true);
     });
-    previewWidthRange.addEventListener("input", function () {
-      applyPreviewWidth(previewWidthRange.value, false);
+    mainWidthRange.addEventListener("input", function () {
+      applyMainWidth(mainWidthRange.value, false);
     });
-    previewWidthRange.addEventListener("change", function () {
-      applyPreviewWidth(previewWidthRange.value, true);
+    mainWidthRange.addEventListener("change", function () {
+      applyMainWidth(mainWidthRange.value, true);
     });
-    previewWidthNumber.addEventListener("input", function () {
-      applyPreviewWidth(previewWidthNumber.value, false);
+    mainWidthNumber.addEventListener("input", function () {
+      applyMainWidth(mainWidthNumber.value, false);
     });
-    previewWidthNumber.addEventListener("change", function () {
-      applyPreviewWidth(previewWidthNumber.value, true);
+    mainWidthNumber.addEventListener("change", function () {
+      applyMainWidth(mainWidthNumber.value, true);
     });
-    previewToggle.addEventListener("change", function () {
-      applyPreviewMode(previewToggle.checked, true);
+    mainAlignSelect.addEventListener("change", function () {
+      applyMainAlign(mainAlignSelect.value, true);
     });
-    previewFill.addEventListener("change", function () {
-      applyFillHeight(previewFill.checked, true);
+    mediaFitSelect.addEventListener("change", function () {
+      applyMediaFit(mediaFitSelect.value, true);
+    });
+    scrubOrderSelect.addEventListener("change", function () {
+      applyScrubOrder(scrubOrderSelect.value, true);
+    });
+    function bindIntroPair(rangeEl, numberEl, applyFn) {
+      rangeEl.addEventListener("input", function () {
+        applyFn(rangeEl.value, false);
+      });
+      rangeEl.addEventListener("change", function () {
+        applyFn(rangeEl.value, true);
+      });
+      numberEl.addEventListener("input", function () {
+        applyFn(numberEl.value, false);
+      });
+      numberEl.addEventListener("change", function () {
+        applyFn(numberEl.value, true);
+      });
+    }
+    bindIntroPair(introSmallBlurRange, introSmallBlurNumber, applyIntroSmallBlur);
+    bindIntroPair(introLargeBlurRange, introLargeBlurNumber, applyIntroLargeBlur);
+    bindIntroPair(introSpeedRange, introSpeedNumber, applyIntroSpeed);
+    bindIntroPair(introDelayRange, introDelayNumber, applyIntroDelay);
+    bindIntroPair(introSmallScaleRange, introSmallScaleNumber, applyIntroSmallScale);
+    bindIntroPair(introSmallRiseRange, introSmallRiseNumber, applyIntroSmallRise);
+    bindIntroPair(introLargeScaleRange, introLargeScaleNumber, applyIntroLargeScale);
+    bindIntroPair(introLargeRiseRange, introLargeRiseNumber, applyIntroLargeRise);
+    introLargeRiseRandom.addEventListener("change", function () {
+      applyIntroLargeRiseRandom(introLargeRiseRandom.checked, true);
+    });
+    introRandomize.addEventListener("change", function () {
+      applyIntroRandomize(introRandomize.checked, true);
+    });
+    introReplayBtn.addEventListener("click", function () {
+      if (isPanelOpen()) playColumnIntro();
     });
     sensRange.addEventListener("input", function () {
       applyScrollSens(sensRange.value, false);
@@ -2331,27 +3868,131 @@
       function (event) {
         if (event.target.closest(".params-panel")) return;
         event.preventDefault();
-        applyScrollDelta(wheelDelta(event));
+        var el = column;
+        var driver = "main";
+        if (usesDualScrub() && scrubColumnEl) {
+          // Only the small scrub strip drives scrub; empty stage + large column → main.
+          if (event.target.closest(".uiworks-scrub-wrap")) {
+            el = scrubColumnEl;
+            driver = "scrub";
+          } else {
+            el = column;
+            driver = "main";
+          }
+          if (scrollDriver !== driver) seizeScrollDriver(driver);
+          else scrollDriver = driver;
+        }
+        applyScrollDelta(wheelDelta(event), el);
         playPreviewVideo();
       },
       { passive: false }
     );
-    windowEl.addEventListener("pointerdown", playPreviewVideo);
-    column.addEventListener("scroll", requestSyncPreview, { passive: true });
+    windowEl.addEventListener("pointerdown", function (event) {
+      playPreviewVideo();
+      if (!usesDualScrub()) return;
+      if (event.target.closest(".params-panel")) return;
+      if (event.target.closest(".uiworks-scrub-wrap")) {
+        seizeScrollDriver("scrub");
+      } else {
+        seizeScrollDriver("main");
+      }
+    });
+
+    // Touch scrolling for both dual-scrub columns (native pan fails under home touch-action:none on iOS).
+    var touchScroll = null;
+    windowEl.addEventListener(
+      "touchstart",
+      function (event) {
+        if (!usesDualScrub() || !event.touches.length) return;
+        if (event.target.closest(".params-panel")) {
+          touchScroll = null;
+          return;
+        }
+        if (event.target.closest(".uiworks-column-wrap .uiworks-column")) {
+          seizeScrollDriver("main");
+          touchScroll = { y: event.touches[0].clientY, el: column };
+          return;
+        }
+        if (event.target.closest(".uiworks-scrub-wrap")) {
+          // Own scrub gestures (incl. reverse order) — never leave to native scroll.
+          seizeScrollDriver("scrub");
+          touchScroll = { y: event.touches[0].clientY, el: scrubColumnEl };
+          return;
+        }
+        var touch = event.touches[0];
+        var overScrub = false;
+        if (scrubWrap && !scrubWrap.hidden) {
+          var rect = scrubWrap.getBoundingClientRect();
+          overScrub =
+            touch.clientX >= rect.left &&
+            touch.clientX <= rect.right &&
+            touch.clientY >= rect.top &&
+            touch.clientY <= rect.bottom;
+        }
+        var driver = overScrub ? "scrub" : "main";
+        var el = overScrub ? scrubColumnEl : column;
+        seizeScrollDriver(driver);
+        touchScroll = { y: touch.clientY, el: el };
+      },
+      { passive: true }
+    );
+    windowEl.addEventListener(
+      "touchmove",
+      function (event) {
+        if (!touchScroll || !event.touches.length) return;
+        event.preventDefault();
+        var touch = event.touches[0];
+        var dy = touchScroll.y - touch.clientY;
+        touchScroll.y = touch.clientY;
+        if (dy) applyScrollDelta(dy, touchScroll.el);
+      },
+      { passive: false }
+    );
+    windowEl.addEventListener(
+      "touchend",
+      function () {
+        touchScroll = null;
+      },
+      { passive: true }
+    );
+    windowEl.addEventListener(
+      "touchcancel",
+      function () {
+        touchScroll = null;
+      },
+      { passive: true }
+    );
+    column.addEventListener("scroll", function () {
+      if (usesDualScrub()) {
+        if (scrollDriver === "scrub") return;
+        requestSyncScrubFromMain();
+      } else {
+        requestSyncPreview();
+      }
+    }, { passive: true });
+    if (scrubColumnEl) {
+      scrubColumnEl.addEventListener(
+        "scroll",
+        function () {
+          if (!usesDualScrub()) return;
+          if (scrollDriver === "main") return;
+          requestSyncMainFromScrub();
+        },
+        { passive: true }
+      );
+    }
     window.addEventListener("resize", function () {
       layoutPreview();
       requestSyncPreview();
     });
     if (compactMq.addEventListener) {
       compactMq.addEventListener("change", function () {
-        updatePreviewFields();
         layoutPreview();
         requestSyncPreview();
         if (isPanelOpen()) observeColumnMedia();
       });
     } else if (compactMq.addListener) {
       compactMq.addListener(function () {
-        updatePreviewFields();
         layoutPreview();
         requestSyncPreview();
         if (isPanelOpen()) observeColumnMedia();

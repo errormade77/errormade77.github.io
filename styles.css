@@ -34,6 +34,15 @@ a:hover {
   opacity: 0.55;
 }
 
+/* No browser focus rings (Safari yellow / Chrome-Firefox blue) on home links. */
+.home a:focus,
+.home a:focus-visible,
+.home button:focus,
+.home button:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 img {
   display: block;
   max-width: none;
@@ -169,17 +178,18 @@ img {
 }
 
 @supports (-webkit-touch-callout: none) {
+  /* iPhone/iPad: difference blend is broken — force normal paint. */
   .home.is-blend-difference .logo,
   .home.is-blend-difference .link,
   .home.is-blend-difference .howto-teaser-text,
   .home.is-blend-difference .home-params {
-    color: var(--black);
-    mix-blend-mode: difference;
-    transform: none;
+    color: var(--black) !important;
+    mix-blend-mode: normal !important;
+    transform: none !important;
   }
 
   .home.is-blend-difference .logo img {
-    filter: none;
+    filter: none !important;
   }
 }
 
@@ -200,16 +210,23 @@ img {
 
 .logo {
   position: absolute;
-  left: 859px;
-  top: 480px;
-  width: 203px;
-  height: 120px;
+  left: 817px;
+  top: 455px;
+  width: 287px;
+  height: 170px;
   overflow: hidden;
 }
 
 .logo img {
-  width: 203px;
-  height: 120px;
+  width: 287px;
+  height: 170px;
+}
+
+a.link,
+button.home-params.home-intro-item {
+  text-decoration: underline;
+  text-underline-position: from-font;
+  text-decoration-skip-ink: none;
 }
 
 .link {
@@ -223,28 +240,28 @@ img {
 }
 
 .link-clock {
-  left: 772px;
-  top: 354px;
+  left: 805px;
+  top: 365px;
 }
 
 .link-telegram {
-  left: 661px;
-  top: 464px;
+  left: 647px;
+  top: 544px;
 }
 
 .link-instagram {
-  left: 716px;
-  top: 480px;
+  left: 702px;
+  top: 560px;
 }
 
 .link-ui-works {
-  left: 1097px;
-  top: 540px;
+  left: 1219px;
+  top: 544px;
 }
 
 .link-graphic-works {
-  left: 1152px;
-  top: 556px;
+  left: 1124px;
+  top: 560px;
 }
 
 .sandbox-links {
@@ -252,19 +269,19 @@ img {
 }
 
 .link-sandbox-001 {
-  left: 909px;
-  top: 754px;
+  left: 875px;
+  top: 684px;
 }
 
 .link-sandbox-002 {
-  left: 990px;
-  top: 767px;
+  left: 964px;
+  top: 697px;
 }
 
 .howto-teaser {
   position: absolute;
-  left: 1097px;
-  top: 259px;
+  left: 964px;
+  top: 278px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -290,15 +307,15 @@ img {
 }
 
 .howto-teaser-image {
-  width: 52px;
-  height: 70px;
+  width: 60px;
+  height: 81px;
   overflow: hidden;
   flex-shrink: 0;
 }
 
 .howto-teaser-image img {
-  width: 52px;
-  height: 70px;
+  width: 60px;
+  height: 81px;
   object-fit: cover;
 }
 
@@ -404,6 +421,8 @@ img {
 
 .uiworks-window {
   --uiworks-column-width: 310px;
+  --uiworks-scrub-width: 310px;
+  --uiworks-main-width: 1065px;
   --uiworks-preview-width: 1065px;
   position: fixed;
   inset: 0;
@@ -451,6 +470,133 @@ img {
   width: var(--uiworks-column-width);
   height: 100%;
   z-index: 2;
+}
+
+.uiworks-scrub-wrap {
+  display: none;
+}
+
+/* Dual scrub: left scrub column + big synced column (desktop + compact). */
+.uiworks-window.is-dual-scrub .uiworks-scrub-wrap:not([hidden]) {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--uiworks-scrub-width);
+  height: 100%;
+  z-index: 3;
+  overflow: hidden;
+}
+
+.uiworks-window.is-dual-scrub .uiworks-scrub-column {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* Always programmatic on touch — reverse order inverts delta in JS.
+     Do not use overflow:hidden for reverse: iOS ignores scrollTop then. */
+  touch-action: none;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: auto;
+}
+
+.uiworks-window.is-dual-scrub .uiworks-column-wrap .uiworks-column {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.uiworks-window.is-dual-scrub .uiworks-scrub-column.has-media {
+  padding-top: 50vh;
+  padding-bottom: 50vh;
+}
+
+.uiworks-window.is-dual-scrub .uiworks-scrub-column .uiworks-item,
+.uiworks-window.is-dual-scrub .uiworks-scrub-column .uiworks-item img,
+.uiworks-window.is-dual-scrub .uiworks-scrub-column .uiworks-item video {
+  width: 100%;
+  max-width: 100%;
+}
+
+.uiworks-window.is-dual-scrub .uiworks-column-wrap {
+  left: var(--uiworks-main-left, var(--uiworks-scrub-width));
+  width: var(--uiworks-main-width);
+}
+
+.uiworks-window.is-dual-scrub .uiworks-column-wrap .uiworks-column.has-media {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.uiworks-window.is-dual-scrub .uiworks-column-wrap .uiworks-column > .uiworks-scrub {
+  display: none !important;
+}
+
+.uiworks-window.is-dual-scrub.is-media-fit-width .uiworks-column-wrap .uiworks-item,
+.uiworks-window.is-dual-scrub.is-media-fit-width .uiworks-column-wrap .uiworks-item img,
+.uiworks-window.is-dual-scrub.is-media-fit-width .uiworks-column-wrap .uiworks-item video,
+.uiworks-window.is-dual-scrub.is-media-fit-width .uiworks-column-wrap .uiworks-block {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
+.uiworks-window.is-dual-scrub.is-media-fit-width .uiworks-column-wrap .uiworks-item img,
+.uiworks-window.is-dual-scrub.is-media-fit-width .uiworks-column-wrap .uiworks-item video {
+  object-fit: cover;
+}
+
+.uiworks-window.is-dual-scrub.is-media-fit-height .uiworks-column-wrap .uiworks-item {
+  width: fit-content;
+  max-width: 100%;
+  height: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.uiworks-window.is-dual-scrub.is-media-fit-height .uiworks-column-wrap .uiworks-item img {
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.uiworks-window.is-dual-scrub.is-media-fit-height .uiworks-column-wrap .uiworks-item video {
+  object-fit: contain;
+}
+
+.uiworks-window.is-dual-scrub.is-media-fit-height .uiworks-column-wrap .uiworks-block {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+}
+
+.uiworks-window.is-dual-scrub .uiworks-preview,
+.uiworks-window.is-dual-scrub .uiworks-preview.is-visible {
+  display: none !important;
+}
+
+.uiworks-window.is-dual-scrub .uiworks-stage .close {
+  left: calc(var(--uiworks-main-left, var(--uiworks-scrub-width)) - 8px);
+  right: auto;
+  top: 16px;
+  transform: translateX(-100%);
+}
+
+/* Column intro — start/end driven in JS with concrete blur px (iOS-safe). */
+.uiworks-window {
+  --works-intro-speed: 0.55s;
+  --works-intro-small-blur: 0px;
+  --works-intro-large-blur: 0px;
+  --works-intro-small-scale: 1;
+  --works-intro-small-rise: 0px;
+  --works-intro-large-scale: 0.85;
+  --works-intro-large-rise: 40px;
+}
+
+.uiworks-window.is-column-intro.is-dual-scrub .uiworks-scrub-wrap:not([hidden]),
+.uiworks-window.is-column-intro .uiworks-column-wrap {
+  pointer-events: none;
+  mix-blend-mode: normal !important;
 }
 
 .uiworks-column {
@@ -508,6 +654,9 @@ img {
   z-index: 1;
   pointer-events: none;
   overflow: hidden;
+  background-repeat: no-repeat;
+  background-position: top right;
+  background-size: contain;
 }
 
 .uiworks-window.is-preview .uiworks-preview.is-visible {
@@ -521,6 +670,10 @@ img {
   height: auto;
   max-height: 100vh;
   object-fit: contain;
+}
+
+.uiworks-preview video.is-loading {
+  opacity: 0;
 }
 
 .uiworks-preview.has-video video,
@@ -578,7 +731,7 @@ img {
   width: var(--uiworks-column-width);
   height: auto;
   vertical-align: top;
-  background: #f0f0f0;
+  background: transparent;
 }
 
 .uiworks-item img,
@@ -591,16 +744,18 @@ img {
 }
 
 .uiworks-item video {
-  min-height: 220px;
-  background: #f0f0f0;
-}
-
-.uiworks-item.is-playing video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   min-height: 0;
+  object-fit: cover;
+  background: transparent;
+  opacity: 0;
+}
+
+.uiworks-item.is-playing video {
+  opacity: 1;
 }
 
 .uiworks-stage .close,
@@ -619,7 +774,7 @@ img {
 }
 
 .uiworks-params {
-  display: none !important;
+  display: none;
   left: auto;
   right: 16px;
   top: auto;
@@ -638,13 +793,150 @@ img {
   appearance: none;
 }
 
+.uiworks-window.is-open .uiworks-params {
+  display: block;
+}
+
 .uiworks-params:hover {
   background: #f5f5f5;
 }
 
 .uiworks-params.home-params {
+  display: block !important;
   position: fixed;
   z-index: 5;
+  left: auto;
+  right: 16px;
+  top: auto;
+  bottom: 16px;
+}
+
+:root {
+  --home-intro-speed: 0.55s;
+  --home-intro-logo-blur: 0px;
+  --home-intro-rest-blur: 0px;
+  --home-intro-logo-scale: 1;
+  --home-intro-logo-rise: 0px;
+  --home-intro-rest-scale: 0.85;
+  --home-intro-rest-rise: 40px;
+}
+
+body.is-home-intro .home-intro-item {
+  opacity: 0;
+  pointer-events: none;
+  transition: none;
+  /* Difference blend + opacity animation = invisible frames on iOS Safari. */
+  mix-blend-mode: normal !important;
+}
+
+/* Logo with blur/rise/scale all neutral — always visible, no intro flash on reload. */
+html.is-logo-intro-skip body.is-home-intro .logo.home-intro-item,
+body.is-home-intro.is-logo-intro-skip .logo.home-intro-item,
+html.is-logo-intro-skip body.is-home-intro.is-blend-difference .logo.home-intro-item,
+body.is-home-intro.is-logo-intro-skip.is-blend-difference .logo.home-intro-item,
+html.is-logo-intro-skip body.is-home-intro.is-hover-blur .logo.home-intro-item,
+body.is-home-intro.is-logo-intro-skip.is-hover-blur .logo.home-intro-item {
+  opacity: 1;
+  filter: none;
+  transform: none;
+  pointer-events: auto;
+  transition: none;
+  mix-blend-mode: normal !important;
+}
+
+body.is-home-intro .home-intro-item.is-intro-visible {
+  opacity: 1;
+  filter: none;
+  transform: none;
+  pointer-events: auto;
+  transition: none;
+  mix-blend-mode: normal !important;
+}
+
+/* Motion (blur/rise/scale) is owned by JS inline styles — do not fight with CSS transforms. */
+body.is-home-intro .logo.home-intro-item,
+body.is-home-intro .home-intro-item[data-intro="rest"] {
+  overflow: visible;
+  transform-origin: center center;
+}
+
+/* Howto during intro: animate the whole teaser; no difference blend (it inverts the image
+   and lets the text escape parent opacity). Text uses solid black — same look on white. */
+body.is-home-intro a.howto-teaser.home-intro-item,
+body.is-home-intro.is-blend-difference a.howto-teaser.home-intro-item {
+  mix-blend-mode: normal !important;
+}
+
+body.is-home-intro .howto-teaser.home-intro-item .howto-teaser-text,
+body.is-home-intro.is-blend-difference .howto-teaser.home-intro-item .howto-teaser-text {
+  mix-blend-mode: normal !important;
+  transform: none;
+  color: var(--black);
+  transition: none;
+}
+
+body.is-home-intro .howto-teaser.home-intro-item .howto-teaser-image,
+body.is-home-intro .howto-teaser.home-intro-item .howto-teaser-image img,
+body.is-home-intro.is-blend-difference .howto-teaser.home-intro-item .howto-teaser-image,
+body.is-home-intro.is-blend-difference .howto-teaser.home-intro-item .howto-teaser-image img {
+  mix-blend-mode: normal !important;
+  transform: none;
+  transition: none;
+}
+
+/* Hover-blur forces filter/transition:none on howto — keep intro in control. */
+@media (hover: hover) and (pointer: fine) {
+  body.is-home-intro.is-hover-blur .howto-teaser.home-hover-target,
+  body.is-home-intro.is-hover-blur.is-home-hovering .howto-teaser.home-hover-target,
+  body.is-home-intro.is-hover-blur.is-home-hovering .howto-teaser.is-hovered {
+    opacity: 0;
+    filter: blur(var(--home-intro-rest-blur));
+    transform: translate3d(0, var(--home-intro-item-rise, var(--home-intro-rest-rise)), 0) scale(var(--home-intro-rest-scale));
+    transition: none;
+  }
+
+  body.is-home-intro.is-hover-blur .howto-teaser.home-hover-target.is-intro-visible,
+  body.is-home-intro.is-hover-blur.is-home-hovering .howto-teaser.home-hover-target.is-intro-visible,
+  body.is-home-intro.is-hover-blur.is-home-hovering .howto-teaser.is-hovered.is-intro-visible {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+    transition:
+      opacity var(--home-intro-speed) ease,
+      filter var(--home-intro-speed) ease,
+      transform var(--home-intro-speed) ease;
+  }
+
+  body.is-home-intro.is-hover-blur .howto-teaser.home-hover-target .howto-teaser-image,
+  body.is-home-intro.is-hover-blur .howto-teaser.home-hover-target .howto-teaser-text,
+  body.is-home-intro.is-hover-blur.is-home-hovering .howto-teaser.home-hover-target .howto-teaser-image,
+  body.is-home-intro.is-hover-blur.is-home-hovering .howto-teaser.home-hover-target .howto-teaser-text,
+  body.is-home-intro.is-hover-blur.is-home-hovering .howto-teaser.is-hovered .howto-teaser-image,
+  body.is-home-intro.is-hover-blur.is-home-hovering .howto-teaser.is-hovered .howto-teaser-text {
+    filter: none;
+    transform: none;
+    transition: none;
+    /* do not force opacity:1 — stay inside parent intro fade */
+  }
+
+  body.is-home-intro.is-hover-blur .home-hover-target[data-intro="rest"],
+  body.is-home-intro.is-hover-blur.is-home-hovering .home-hover-target[data-intro="rest"],
+  body.is-home-intro.is-hover-blur.is-home-hovering .home-hover-target[data-intro="rest"].is-hovered {
+    transform: translate3d(0, var(--home-intro-item-rise, var(--home-intro-rest-rise)), 0) scale(var(--home-intro-rest-scale));
+    filter: blur(var(--home-intro-rest-blur));
+    transition: none;
+  }
+
+  body.is-home-intro.is-hover-blur .home-hover-target[data-intro="rest"].is-intro-visible,
+  body.is-home-intro.is-hover-blur.is-home-hovering .home-hover-target[data-intro="rest"].is-intro-visible,
+  body.is-home-intro.is-hover-blur.is-home-hovering .home-hover-target[data-intro="rest"].is-hovered.is-intro-visible {
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+    transition:
+      opacity var(--home-intro-speed) ease,
+      filter var(--home-intro-speed) ease,
+      transform var(--home-intro-speed) ease;
+  }
 }
 
 .params-modal {
@@ -717,6 +1009,19 @@ img {
   font: inherit;
   color: inherit;
   letter-spacing: inherit;
+}
+
+.params-field select {
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-left: 1px solid var(--link-border);
+  border-bottom: 1px solid var(--link-border);
+  background: var(--white);
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
 }
 
 .params-check {
@@ -977,9 +1282,9 @@ img {
   padding: calc(8 / 1920 * 100cqw);
 }
 
-/* ========== Narrow screens ========== */
+/* ========== Phones & tablets ========== */
 
-@media (max-width: 720px) {
+@media (max-width: 1280px), (pointer: coarse), (any-pointer: coarse), (hover: none) {
   html,
   body.home {
     height: 100%;
@@ -1015,11 +1320,28 @@ img {
 
   .home-cluster {
     position: relative;
-    width: 100%;
-    max-width: none;
-    height: 460px;
+    width: 393px;
+    height: 852px;
     flex-shrink: 0;
-    margin-top: 55px;
+    margin: 0;
+    /* No zoom — it kills intro filter:blur on iOS. Artboard is already mobile-sized. */
+  }
+
+  .params-check-blend {
+    display: none !important;
+  }
+
+  .home.is-blend-difference .logo,
+  .home.is-blend-difference .link,
+  .home.is-blend-difference .howto-teaser-text,
+  .home.is-blend-difference .home-params {
+    color: var(--black) !important;
+    mix-blend-mode: normal !important;
+    transform: none !important;
+  }
+
+  .home.is-blend-difference .logo img {
+    filter: none !important;
   }
 
   .uiworks-window.is-open,
@@ -1033,80 +1355,119 @@ img {
   }
 
   .logo {
-    left: 50%;
-    top: 50%;
-    margin: -60px 0 0 -101.5px;
+    left: 85px;
+    top: 360px;
+    width: 223px;
+    height: 132px;
+    margin: 0;
+  }
+
+  .logo img {
+    width: 223px;
+    height: 132px;
   }
 
   .link-clock {
-    left: calc(50% - 108px);
-    top: calc(50% - 148px);
+    left: 44px;
+    top: 224px;
   }
 
   .link-telegram {
     left: 16px;
-    top: calc(50% - 28px);
+    top: 499px;
+    right: auto;
   }
 
   .link-instagram {
-    left: 28px;
-    top: calc(50% - 12px);
+    left: 71px;
+    top: 515px;
+    right: auto;
   }
 
   .link-ui-works {
-    left: auto;
-    right: 72px;
-    top: calc(50% + 6px);
+    left: 232px;
+    right: auto;
+    top: 515px;
   }
 
   .link-graphic-works {
-    left: auto;
-    right: 16px;
-    top: calc(50% + 22px);
+    left: 287px;
+    right: auto;
+    top: 499px;
   }
 
   .link-sandbox-001 {
-    left: calc(50% - 50px);
-    top: calc(50% + 96px);
+    left: 112px;
+    top: 597px;
   }
 
   .link-sandbox-002 {
-    left: calc(50% + 31px);
-    top: calc(50% + 109px);
+    left: 201px;
+    top: 613px;
   }
 
   .howto-teaser {
-    left: calc(50% - 30px);
+    left: 201px;
     right: auto;
-    top: calc(50% - 200px);
+    top: 223px;
+    width: 118px;
+    gap: 12px;
+  }
+
+  .howto-teaser-image {
+    width: 46px;
+    height: 61px;
+  }
+
+  .howto-teaser-image img {
+    width: 46px;
+    height: 61px;
+  }
+
+  .howto-teaser-text {
+    width: 100%;
   }
 
   .home-params {
-    right: 12px;
-    bottom: 12px;
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
   }
 
   .uiworks-window {
     --uiworks-column-width: 100%;
   }
 
-  .uiworks-window.is-preview .uiworks-column.has-media {
-    padding-top: 0;
-    padding-bottom: 0;
-  }
-
-  .uiworks-window.is-preview .uiworks-scrub,
-  .uiworks-window.is-preview .uiworks-preview,
-  .uiworks-window.is-preview .uiworks-preview.is-visible {
+  /* Width is fixed to 64px on compact — control stays desktop-only. */
+  .params-scrub-width-field {
     display: none !important;
   }
 
-  .params-preview-field {
-    display: none !important;
+  /* Keep dual-scrub layout vars on compact — don't stretch the large column to full width. */
+  .uiworks-window.is-dual-scrub .uiworks-column-wrap {
+    left: var(--uiworks-main-left, var(--uiworks-scrub-width));
+    width: var(--uiworks-main-width);
+    max-width: calc(100% - var(--uiworks-scrub-width));
+  }
+
+  .uiworks-window.is-dual-scrub .uiworks-scrub-wrap:not([hidden]) {
+    width: var(--uiworks-scrub-width);
+  }
+
+  .uiworks-window.is-dual-scrub .uiworks-scrub-column {
+    touch-action: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: auto;
+  }
+
+  .uiworks-window.is-dual-scrub .uiworks-column-wrap .uiworks-column {
+    touch-action: none;
+    -webkit-overflow-scrolling: auto;
   }
 
   .uiworks-window.is-open {
     display: block;
+    height: 100%;
+    height: -webkit-fill-available;
     height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
@@ -1152,10 +1513,17 @@ img {
     left: auto;
   }
 
+  .uiworks-window.is-dual-scrub .uiworks-stage .close {
+    left: calc(var(--uiworks-main-left, var(--uiworks-scrub-width)) - 8px);
+    right: auto;
+    top: 12px;
+    transform: translateX(-100%);
+  }
+
   .uiworks-params {
-    right: 12px;
+    right: max(12px, env(safe-area-inset-right, 0px));
     top: auto;
-    bottom: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
   }
 
   .params-panel {
@@ -1165,6 +1533,66 @@ img {
     bottom: 52px;
     width: min(420px, calc(100% - 24px));
     max-height: calc(100% - 64px);
+  }
+
+  /* Full-width bottom sheet — usable on phones */
+  .params-modal.is-open {
+    display: block;
+    pointer-events: auto;
+    background: rgba(0, 0, 0, 0.25);
+    z-index: 40;
+    touch-action: auto;
+  }
+
+  .params-panel {
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: min(88dvh, calc(100% - 12px)) !important;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-top: 1px solid var(--link-border);
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+
+  .params-close {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: block;
+    width: 100%;
+    margin: 8px 0 0;
+    padding: 14px 8px;
+    background: var(--white);
+    border-top: 1px solid var(--link-border);
+    text-align: left;
+  }
+
+  .home.is-params-open {
+    touch-action: auto;
+  }
+
+  .home.is-params-open .home-params {
+    pointer-events: none;
+  }
+
+  .params-width-row input[type="number"] {
+    width: 72px;
+    font-size: 16px; /* avoid iOS zoom-on-focus */
+  }
+
+  .params-field select,
+  .params-check {
+    font-size: 16px;
   }
 
   .howto-window.is-open {
