@@ -5,29 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>ERRORMADE</title>
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=20260911-params-restore" />
+    <link rel="stylesheet" href="styles.css?v=20260911-params-save" />
     <script>
       (function () {
         // Fallbacks only — never overwrite existing localStorage on every load.
         var DEFAULTS = {
-          "__stamp": "20260911-ship-defaults",
+          "__stamp": "20260911-ship-current",
           "errormade-graphicworks-column-width": "520",
           "errormade-graphicworks-intro-delay": "0",
           "errormade-graphicworks-intro-large-blur": "12",
           "errormade-graphicworks-intro-large-rise": "20",
-          "errormade-graphicworks-intro-large-rise-random": "0",
           "errormade-graphicworks-intro-large-scale": "1",
-          "errormade-graphicworks-intro-randomize": "0",
           "errormade-graphicworks-intro-small-blur": "12.5",
           "errormade-graphicworks-intro-small-rise": "20",
-          "errormade-graphicworks-intro-small-scale": "1",
-          "errormade-graphicworks-intro-speed": "0.55",
-          "errormade-graphicworks-main-column-align": "left",
-          "errormade-graphicworks-main-column-width": "400",
-          "errormade-graphicworks-media-fit": "width",
           "errormade-graphicworks-preview-fill-height": "1",
           "errormade-graphicworks-preview-width": "400",
-          "errormade-graphicworks-scrub-order": "normal",
           "errormade-graphicworks-scroll-preview": "1",
           "errormade-graphicworks-scroll-sens": "2",
           "errormade-graphicworks-scroll-smooth": "90",
@@ -52,14 +44,17 @@
           "errormade-home-intro-scramble": "1",
           "errormade-home-intro-speed": "0.5",
           "errormade-home-others-scale": "1",
-          "errormade-home-spray-cluster": "23",
           "errormade-home-spray-drips": "8",
           "errormade-home-spray-intensity": "80",
           "errormade-home-spray-liquid": "45",
           "errormade-home-spray-on": "1",
           "errormade-home-spray-particle-size": "1.5",
           "errormade-home-spray-particles": "22",
-          "errormade-home-spray-size": "70"
+          "errormade-home-spray-size": "70",
+          "errormade-uiworks-column-width": "520",
+          "errormade-uiworks-preview-fill-height": "1",
+          "errormade-uiworks-preview-width": "400",
+          "errormade-uiworks-scroll-preview": "1"
         };
         window.__ERRORMADE_DEFAULTS__ = DEFAULTS;
 
@@ -341,6 +336,7 @@ sign</span>
           <span>intro randomize</span>
         </label>
         <button class="params-upload" id="home-intro-replay" type="button">replay intro</button>
+        <button class="params-upload" data-params-save type="button">save as default</button>
         <button class="close params-close" id="home-params-close" type="button">close</button>
       </div>
     </div>
@@ -491,6 +487,7 @@ sign</span>
             multiple
           />
           <ul class="params-list" id="uiworks-params-list"></ul>
+          <button class="params-upload" data-params-save type="button">save as default</button>
           <button class="close params-close" id="uiworks-params-close" type="button">close</button>
         </div>
       </div>
@@ -642,6 +639,7 @@ sign</span>
             multiple
           />
           <ul class="params-list" id="graphicworks-params-list"></ul>
+          <button class="params-upload" data-params-save type="button">save as default</button>
           <button class="close params-close" id="graphicworks-params-close" type="button">close</button>
         </div>
       </div>
@@ -1119,6 +1117,6 @@ sign</span>
   }
 ]
     </script>
-    <script src="script.js?v=20260911-params-restore"></script>
+    <script src="script.js?v=20260911-params-save"></script>
   </body>
 </html>

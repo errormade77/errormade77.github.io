@@ -52,6 +52,55 @@
     window.clearTimeout(sharedParamsTimer);
     sharedParamsTimer = window.setTimeout(pushSharedParams, 280);
   }
+  function saveSharedParamsAsDefault(btn) {
+    window.clearTimeout(sharedParamsTimer);
+    sharedParamsTimer = 0;
+    var data = collectSharedParams();
+    data.__replace__ = true;
+    try {
+      localStorage.setItem("errormade-dev-params-stamp", String(data.__stamp));
+    } catch (error) {}
+    Object.keys(data).forEach(function (key) {
+      if (key.indexOf("errormade-") === 0) {
+        SHIP_DEFAULTS[key] = String(data[key]);
+      }
+    });
+    SHIP_DEFAULTS.__stamp = String(data.__stamp);
+    window.__ERRORMADE_DEFAULTS__ = SHIP_DEFAULTS;
+
+    var label = btn ? btn.textContent : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "saving…";
+    }
+    return fetch("dev-params.json", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("save failed");
+        if (btn) btn.textContent = "saved";
+      })
+      .catch(function () {
+        if (btn) btn.textContent = "save failed";
+      })
+      .then(function () {
+        if (!btn) return;
+        window.setTimeout(function () {
+          btn.disabled = false;
+          btn.textContent = label || "save as default";
+        }, 1200);
+      });
+  }
+  function wireParamsSaveButtons() {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-params-save]"), function (btn) {
+      btn.addEventListener("click", function (event) {
+        event.preventDefault();
+        saveSharedParamsAsDefault(btn);
+      });
+    });
+  }
   try {
     var nativeSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function (key, value) {
@@ -414,6 +463,7 @@
 
   initHomeParams();
   initHomeSpray();
+  wireParamsSaveButtons();
   syncHomeClusterScale();
   window.addEventListener("resize", syncHomeClusterScale);
   if (window.visualViewport) {

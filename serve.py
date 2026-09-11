@@ -38,21 +38,26 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(400, "Invalid JSON: %s" % exc)
             return
         cleaned = {}
+        replace = bool(data.get("__replace__"))
         for key, value in data.items():
             if key == "__stamp" or str(key).startswith("errormade-"):
                 cleaned[key] = value
-        # Merge into existing file so partial PUTs don't wipe other keys.
-        existing = {}
-        if os.path.isfile(PARAMS_PATH):
-            try:
-                with open(PARAMS_PATH, "r", encoding="utf-8") as handle:
-                    prev = json.load(handle)
-                if isinstance(prev, dict):
-                    existing = prev
-            except Exception:
-                existing = {}
-        existing.update(cleaned)
+        if replace:
+            existing = dict(cleaned)
+        else:
+            # Merge into existing file so partial PUTs don't wipe other keys.
+            existing = {}
+            if os.path.isfile(PARAMS_PATH):
+                try:
+                    with open(PARAMS_PATH, "r", encoding="utf-8") as handle:
+                        prev = json.load(handle)
+                    if isinstance(prev, dict):
+                        existing = prev
+                except Exception:
+                    existing = {}
+            existing.update(cleaned)
         existing["__stamp"] = str(cleaned.get("__stamp") or existing.get("__stamp") or "")
+        existing.pop("__replace__", None)
         with open(PARAMS_PATH, "w", encoding="utf-8") as handle:
             json.dump(existing, handle, indent=2, sort_keys=True, ensure_ascii=False)
             handle.write("\n")
