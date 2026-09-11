@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>ERRORMADE</title>
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=20260911-params-save" />
+    <link rel="stylesheet" href="styles.css?v=20260911-hide-params" />
     <script>
       (function () {
         // Fallbacks only — never overwrite existing localStorage on every load.
@@ -153,7 +153,7 @@ sign</span>
       </div>
     </div>
 
-    <button class="uiworks-params home-params home-hover-target home-intro-item" id="home-params-open" type="button" data-intro="rest">parameters</button>
+    <button class="uiworks-params home-params" id="home-params-open" type="button" hidden>parameters</button>
     <div class="params-modal home-params-modal" id="home-params-modal" hidden>
       <div class="params-panel">
         <p class="params-title">parameters</p>
@@ -357,7 +357,7 @@ sign</span>
         </div>
         <div class="uiworks-preview" id="uiworks-preview" hidden></div>
         <button class="close" type="button">close</button>
-        <button class="uiworks-params" id="uiworks-params-open" type="button">parameters</button>
+        <button class="uiworks-params" id="uiworks-params-open" type="button" hidden>parameters</button>
       </div>
       <div class="params-modal" id="uiworks-params-modal" hidden>
         <div class="params-panel">
@@ -509,7 +509,7 @@ sign</span>
         </div>
         <div class="uiworks-preview" id="graphicworks-preview" hidden></div>
         <button class="close" type="button">close</button>
-        <button class="uiworks-params" id="graphicworks-params-open" type="button">parameters</button>
+        <button class="uiworks-params" id="graphicworks-params-open" type="button" hidden>parameters</button>
       </div>
       <div class="params-modal" id="graphicworks-params-modal" hidden>
         <div class="params-panel">
@@ -1117,6 +1117,6 @@ sign</span>
   }
 ]
     </script>
-    <script src="script.js?v=20260911-params-save"></script>
+    <script src="script.js?v=20260911-hide-params"></script>
   </body>
 </html>
